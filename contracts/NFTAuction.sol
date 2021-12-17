@@ -2,8 +2,10 @@
 pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract NFTAuction {
+contract NFTAuction is Ownable, ReentrancyGuard{
     event Start();
     event Bid(address indexed sender, uint amount);
     event Withdraw(address indexed bidder, uint amount);
@@ -33,7 +35,7 @@ contract NFTAuction {
         seller = payable(msg.sender);
         highestBid = _startingBid;
     }
-
+   
     function start() external {
         require(!started, "started");
         require(msg.sender == seller, "not seller");
@@ -65,7 +67,7 @@ contract NFTAuction {
         emit Bid(msg.sender, msg.value);
     }
 
-    function withdraw() external {
+    function withdraw() external nonReentrant {
         uint bal = bids[msg.sender];
         bids[msg.sender] = 0;
         payable(msg.sender).transfer(bal);
