@@ -201,3 +201,82 @@ describe("Test NFTAuction end()", function () {
     await expect( balance.toString()).to.equal("10");
   }); 
 });
+
+describe("Test NFTauction withdraw()", function () {
+  let nftAuction;
+  let mockNFT;
+  let accounts;
+
+  beforeEach(async function () {
+    accounts = await ethers.getSigners();
+
+    const MockNFT = await ethers.getContractFactory("MockNFT");
+    mockNFT = await MockNFT.deploy();
+    await mockNFT.deployed();
+
+    // token '2' auction with 10 starting amount
+    const NFTAuction = await ethers.getContractFactory("NFTAuction");
+    nftAuction = await NFTAuction.deploy(mockNFT.address, 2, 10);
+    await nftAuction.deployed();
+  })
+  
+  it("Should withdraw the bid for the account1", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start();
+
+    await nftAuction.bid({
+      from: accounts[0].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[1]).bid({
+      from: accounts[1].address,
+      value: 12
+    });
+    await nftAuction.connect(accounts[2]).bid({
+      from: accounts[2].address,
+      value: 13
+    });
+
+    await expect(() => nftAuction.withdraw(accounts[1].address)).to.be.changeEtherBalance(accounts[1], 12);
+  });
+
+  it("Should not withdraw for the highest bidder", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start();
+
+    await nftAuction.bid({
+      from: accounts[0].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[1]).bid({
+      from: accounts[1].address,
+      value: 12
+    });
+    await nftAuction.connect(accounts[2]).bid({
+      from: accounts[2].address,
+      value: 13
+    });
+
+    await expect( nftAuction.withdraw(accounts[2].address)).to.be.revertedWith("Not bidder exist");
+  });
+
+  it("Should withdraw for only owner", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start();
+
+    await nftAuction.bid({
+      from: accounts[0].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[1]).bid({
+      from: accounts[1].address,
+      value: 12
+    });
+    await nftAuction.connect(accounts[2]).bid({
+      from: accounts[2].address,
+      value: 13
+    });
+
+   await expect( nftAuction.connect(accounts[1]).withdraw(accounts[0].address)).to.be.revertedWith("Ownable: caller is not the owner");
+  });
+});

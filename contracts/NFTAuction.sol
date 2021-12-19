@@ -67,14 +67,14 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         emit Bid(msg.sender, msg.value);
     }
 
-    function withdraw() external onlyOwner nonReentrant {
-        uint bal = bids[msg.sender];
-        require(bal > 0, "Not bid");
+    function withdraw(address _bidder) external onlyOwner nonReentrant {
+        uint bal = bids[_bidder];
+        require(bal > 0, "Not bidder exist");
 
-        bids[msg.sender] = 0;
-        payable(msg.sender).transfer(bal);
+        bids[_bidder] = 0;
+        payable(_bidder).transfer(bal);
 
-        emit Withdraw(msg.sender, bal);
+        emit Withdraw(_bidder, bal);
     }
 
     function end() external {
