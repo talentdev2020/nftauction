@@ -9,12 +9,12 @@ contract MockNFT is ERC721 {
     constructor () ERC721("MockNFT", "MN") {
         tokenCounter = 1;
         for (uint i = 0; i < 10; i ++) {
-            safeMint();
+            safeMint(msg.sender);
         }
     }
 
-    function safeMint() private {
-        _safeMint(msg.sender, tokenCounter);
+    function safeMint(address _to) private {
+        _safeMint(_to, tokenCounter);
         tokenCounter += 1;
     }
 }

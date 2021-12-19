@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -59,7 +59,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         highestBidder = msg.sender;
         highestBid = msg.value;
 
-        if (block.timestamp > endAt + 10 minutes) {
+        if (block.timestamp > endAt - 10 minutes) {
             endAt += 10 minutes;
             emit TimeIncreased(msg.sender, 10);    
         }
@@ -67,8 +67,10 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         emit Bid(msg.sender, msg.value);
     }
 
-    function withdraw() external nonReentrant {
+    function withdraw() external onlyOwner nonReentrant {
         uint bal = bids[msg.sender];
+        require(bal > 0, "Not bid");
+
         bids[msg.sender] = 0;
         payable(msg.sender).transfer(bal);
 
