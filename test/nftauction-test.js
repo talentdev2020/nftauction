@@ -237,7 +237,7 @@ describe("Test NFTauction withdraw()", function () {
       value: 13
     });
 
-    await expect(() => nftAuction.withdraw(accounts[1].address)).to.be.changeEtherBalance(accounts[1], 12);
+    await expect(() => nftAuction.connect(accounts[1]).withdraw()).to.be.changeEtherBalance(accounts[1], 12);
   });
 
   it("Should not withdraw for the highest bidder", async function () {
@@ -257,10 +257,10 @@ describe("Test NFTauction withdraw()", function () {
       value: 13
     });
 
-    await expect( nftAuction.withdraw(accounts[2].address)).to.be.revertedWith("Not bidder exist");
+    await expect( nftAuction.connect(accounts[2]).withdraw()).to.be.revertedWith("Not bidder exist");
   });
 
-  it("Should withdraw for only owner", async function () {
+  it("Should withdraw for only bidder", async function () {
     await mockNFT.approve(nftAuction.address, 2);
     await nftAuction.start();
 
@@ -272,11 +272,7 @@ describe("Test NFTauction withdraw()", function () {
       from: accounts[1].address,
       value: 12
     });
-    await nftAuction.connect(accounts[2]).bid({
-      from: accounts[2].address,
-      value: 13
-    });
 
-   await expect( nftAuction.connect(accounts[1]).withdraw(accounts[0].address)).to.be.revertedWith("Ownable: caller is not the owner");
+   await expect( nftAuction.connect(accounts[2]).withdraw()).to.be.revertedWith("Not bidder exist");
   });
 });
