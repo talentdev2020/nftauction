@@ -14,7 +14,6 @@ struct Auction {
     uint endAt;
     bool started;
     bool ended;
-    bool isValue;
 }
 contract NFTAuction is Ownable, ReentrancyGuard{
     event Start();
@@ -33,20 +32,22 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     constructor() {
     }
 
-    function createAuction(address _nft, uint256 _nftId, uint _startingBid) external {
-        require(!auctions[_nftId].isValue, "already created");
+    function createAuction(address _nft, uint _nftId, uint _startingBid) external {
+        require(auctions[_nftId].seller == address(0), "already created");
+
         Auction memory auction;
         auction.nft = ERC721(_nft);
         auction.nftId = _nftId;
         auction.seller = payable(msg.sender);
         auction.highestBid = _startingBid;
-        auction.isValue = true;
 
         auctions[_nftId] = auction;
     }
+    function getSeller(uint _nftId) public onlyOwner view returns(address) {
+        return auctions[_nftId].seller;
+    }
 
     function start(uint _nftId) external isNFTOwner(_nftId, msg.sender) {
-        require(auctions[_nftId].isValue, "not created");
         require(!auctions[_nftId].started, "started");
 
         auctions[_nftId].nft.transferFrom(msg.sender, address(this), _nftId);
@@ -76,7 +77,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         emit Bid(msg.sender, msg.value);
     }
 
-    function withdraw(uint _nftId) external isNFTOwner(_nftId, msg.sender) nonReentrant {
+    function withdraw(uint _nftId) external nonReentrant {
         uint bal = bids[_nftId][msg.sender];
         require(bal > 0, "Not bidder exist");
 

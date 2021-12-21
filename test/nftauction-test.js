@@ -19,9 +19,9 @@ describe("Test NFTauction createAuction()", function () {
     await nftAuction.deployed();
 
     await nftAuction.createAuction(mockNFT.address, 2, 10)
-    const owner = await nftAuction.auctions.call();
+    const seller = await nftAuction.getSeller(2);
 
-    expect( owner.seller).to.equal(accounts[0].address);
+    expect( seller ).to.equal(accounts[0].address);
   });
   it("Should not create with existing auction", async function () {
     await expect( nftAuction.createAuction(mockNFT.address, 2, 10)).to.be.revertedWith("already created");
@@ -33,7 +33,7 @@ describe("Test NFTauction start()", function () {
   let mockNFT;
   let accounts;
 
-  beforeEach(async function () {
+  it("Should create auction", async function () {
     accounts = await ethers.getSigners();
 
     const MockNFT = await ethers.getContractFactory("MockNFT");
@@ -48,10 +48,6 @@ describe("Test NFTauction start()", function () {
     await nftAuction.createAuction(mockNFT.address, 2, 10)
   })
 
-  it("Should only start with created auction", async function () {
-    await expect( nftAuction.start(2)).to.be.revertedWith("not created");
-  });
- 
   it("Should only start with seller", async function () {
     await expect( nftAuction.connect(accounts[1]).start(2)).to.be.revertedWith("not seller");
   });
@@ -188,7 +184,7 @@ describe("Test NFTAuction end()", function () {
     await ethers.provider.send('evm_mine');
     await nftAuction.end(2);
 
-    await expect( nftAuction.end()).to.be.revertedWith("ended");
+    await expect( nftAuction.end(2)).to.be.revertedWith("ended");
   });
 
   it("Should pay to the seller 20 and send NFT to highest bidder", async function () {
