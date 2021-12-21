@@ -6,19 +6,6 @@ describe("Test NFTauction start()", function () {
   let mockNFT;
   let accounts;
 
-  beforeEach(async function () {
-    // accounts = await ethers.getSigners();
-
-    // const MockNFT = await ethers.getContractFactory("MockNFT");
-    // mockNFT = await MockNFT.deploy();
-    // await mockNFT.deployed();
-
-    // // token Id '2' auction with '10' starting amount
-    // const NFTAuction = await ethers.getContractFactory("NFTAuction");
-    // nftAuction = await NFTAuction.deploy(mockNFT.address, 2, 10);
-    // await nftAuction.deployed();
-  })
-
   it("Should set the seller with the caller", async function () {
     accounts = await ethers.getSigners();
 
