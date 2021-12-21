@@ -33,6 +33,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function createAuction(address _nft, uint _nftId, uint _startingBid) external {
+        require(ERC721(_nft).ownerOf(_nftId) == msg.sender, "not owner of token");
         require(auctions[_nftId].seller == address(0), "already created");
 
         Auction memory auction;

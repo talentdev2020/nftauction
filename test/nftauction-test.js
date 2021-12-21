@@ -31,6 +31,9 @@ describe("Test NFTauction createAuction()", function () {
   it("Should not create with existing auction", async function () {
     await expect( nftAuction.createAuction(mockNFT.address, 2, 10)).to.be.revertedWith("already created");
   });
+  it("Should not create for the not owner of token", async function () {
+    await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 5, 10)).to.be.revertedWith("not owner of token");
+  });
 })
 
 describe("Test NFTauction start()", function () {
