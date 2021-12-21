@@ -13,15 +13,20 @@ describe("Test NFTauction createAuction()", function () {
     mockNFT = await MockNFT.deploy();
     await mockNFT.deployed();
 
-    // token Id '2' auction with '10' starting amount
     const NFTAuction = await ethers.getContractFactory("NFTAuction");
     nftAuction = await NFTAuction.deploy();
     await nftAuction.deployed();
-
+   
+    // token Id '2' auction with '10' starting amount
     await nftAuction.createAuction(mockNFT.address, 2, 10)
-    const seller = await nftAuction.getSeller(2);
+    const seller1 = await nftAuction.getSeller(2);
 
-    expect( seller ).to.equal(accounts[0].address);
+    // token Id '3' auction with '11' starting amount
+    await nftAuction.createAuction(mockNFT.address, 2, 10)
+    const seller2 = await nftAuction.getSeller(3);
+
+    expect( seller1 ).to.equal(accounts[0].address);
+    expect( seller2 ).to.equal(accounts[0].address);
   });
   it("Should not create with existing auction", async function () {
     await expect( nftAuction.createAuction(mockNFT.address, 2, 10)).to.be.revertedWith("already created");
@@ -33,36 +38,50 @@ describe("Test NFTauction start()", function () {
   let mockNFT;
   let accounts;
 
-  it("Should create auction", async function () {
+  it("Should create auctions", async function () {
     accounts = await ethers.getSigners();
 
     const MockNFT = await ethers.getContractFactory("MockNFT");
     mockNFT = await MockNFT.deploy();
     await mockNFT.deployed();
 
-    // token Id '2' auction with '10' starting amount
     const NFTAuction = await ethers.getContractFactory("NFTAuction");
     nftAuction = await NFTAuction.deploy();
     await nftAuction.deployed();
 
-    await nftAuction.createAuction(mockNFT.address, 2, 10)
+    // token Id '2' auction with '10' starting amount for owner
+    await nftAuction.createAuction(mockNFT.address, 2, 10);
+
+    // token Id '3' auction with '10' starting amount for owner
+    await nftAuction.createAuction(mockNFT.address, 3, 10);
+
+    // token Id '4' auction with '10' starting amount for account1
+    await nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 2, 10);
+
+    const seller = await nftAuction.getSeller(4);
+    expect( seller ).to.equal(accounts[1].address);
+
   })
 
   it("Should only start with seller", async function () {
     await expect( nftAuction.connect(accounts[1]).start(2)).to.be.revertedWith("not seller");
+
+    await expect( nftAuction.start(4)).to.be.revertedWith("not seller");
+  });
+
+  it("Should deposit token Id 2 and 4 to the contract after started", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await mockNFT.approve(nftAuction.address, 3);
+    await nftAuction.start(2);
+    await nftAuction.start(3);
+
+    const balance = await mockNFT.balanceOf(nftAuction.address);
+    expect(balance.toString()).to.equal("2");
   });
 
   it("Should not start if already started", async function () {
-    await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
-    
     await expect( nftAuction.start(2)).to.be.revertedWith("started");
-  });
-
-  it("Should deposit token Id 2 to the contract", async function () {
-    const balance = await mockNFT.balanceOf(nftAuction.address);
-    expect(balance.toString()).to.equal("1");
-  });
+  }); 
 });
 
 describe("Test NFTauction bid()", function () {
