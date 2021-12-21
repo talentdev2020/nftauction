@@ -14,6 +14,7 @@ struct Auction {
     uint endAt;
     bool started;
     bool ended;
+    bool isValue;
 }
 contract NFTAuction is Ownable, ReentrancyGuard{
     event Start();
@@ -29,14 +30,23 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         require(auctions[_nftId].seller == _address, "not seller");
         _;
     }
+    constructor() {
+    }
+
     function createAuction(address _nft, uint256 _nftId, uint _startingBid) external {
+        require(!auctions[_nftId].isValue, "already created");
         Auction memory auction;
         auction.nft = ERC721(_nft);
         auction.nftId = _nftId;
         auction.seller = payable(msg.sender);
         auction.highestBid = _startingBid;
+        auction.isValue = true;
+
+        auctions[_nftId] = auction;
     }
+
     function start(uint _nftId) external isNFTOwner(_nftId, msg.sender) {
+        require(auctions[_nftId].isValue, "not created");
         require(!auctions[_nftId].started, "started");
 
         auctions[_nftId].nft.transferFrom(msg.sender, address(this), _nftId);
@@ -52,7 +62,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         require(msg.value > auctions[_nftId].highestBid, "value < highest");
 
         if (auctions[_nftId].highestBidder != address(0)) {
-            bids[_nftId][auctions[_nftId].highestBid] += auctions[_nftId].highestBid;
+            bids[_nftId][auctions[_nftId].highestBidder] += auctions[_nftId].highestBid;
         }
 
         auctions[_nftId].highestBidder = msg.sender;

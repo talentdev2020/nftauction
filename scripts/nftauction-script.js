@@ -15,7 +15,7 @@ async function main() {
 
   // We get the contract to deploy
   const NFTAuction = await hre.ethers.getContractFactory("NFTAuction");
-  const nFTAuction = await NFTAuction.deploy("$nftAddress", "$tokenID", "$startingBid");
+  const nFTAuction = await NFTAuction.deploy();
 
   await nFTAuction.deployed();
 
