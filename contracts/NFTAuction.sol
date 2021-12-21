@@ -5,6 +5,16 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+struct Auction {
+    ERC721 nft;
+    address payable seller;
+    address highestBidder;
+    uint nftId;
+    uint highestBid;
+    uint endAt;
+    bool started;
+    bool ended;
+}
 contract NFTAuction is Ownable, ReentrancyGuard{
     event Start();
     event Bid(address indexed sender, uint amount);
@@ -12,84 +22,73 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     event End(address winner, uint amount);
     event TimeIncreased(address sender, uint increasedMinutes);
 
-    ERC721 public nft;
-    uint public nftId;
+    mapping(uint => Auction) public auctions;
+    mapping(uint => mapping(address => uint)) bids;
 
-    address payable public seller;
-    uint public endAt;
-    bool public started;
-    bool public ended;
-
-    address public highestBidder;
-    uint public highestBid;
-    mapping(address => uint) public bids;
-
-    constructor(
-        address _nft,
-        uint _nftId,
-        uint _startingBid
-    ) {
-        nft = ERC721(_nft);
-        nftId = _nftId;
-
-        seller = payable(msg.sender);
-        highestBid = _startingBid;
+    modifier isNFTOwner(uint _nftId, address _address) {
+        require(auctions[_nftId].seller == _address, "not seller");
+        _;
     }
-   
-    function start() external {
-        require(!started, "started");
-        require(msg.sender == seller, "not seller");
+    function createAuction(address _nft, uint256 _nftId, uint _startingBid) external {
+        Auction memory auction;
+        auction.nft = ERC721(_nft);
+        auction.nftId = _nftId;
+        auction.seller = payable(msg.sender);
+        auction.highestBid = _startingBid;
+    }
+    function start(uint _nftId) external isNFTOwner(_nftId, msg.sender) {
+        require(!auctions[_nftId].started, "started");
 
-        nft.transferFrom(msg.sender, address(this), nftId);
-        started = true;
-        endAt = block.timestamp + 7 days;
+        auctions[_nftId].nft.transferFrom(msg.sender, address(this), _nftId);
+        auctions[_nftId].started = true;
+        auctions[_nftId].endAt = block.timestamp + 7 days;
 
         emit Start();
     }
 
-    function bid() external payable {
-        require(started, "not started");
-        require(block.timestamp < endAt, "ended");
-        require(msg.value > highestBid, "value < highest");
+    function bid(uint _nftId) external payable {
+        require(auctions[_nftId].started, "not started");
+        require(block.timestamp < auctions[_nftId].endAt, "ended");
+        require(msg.value > auctions[_nftId].highestBid, "value < highest");
 
-        if (highestBidder != address(0)) {
-            bids[highestBidder] += highestBid;
+        if (auctions[_nftId].highestBidder != address(0)) {
+            bids[_nftId][auctions[_nftId].highestBid] += auctions[_nftId].highestBid;
         }
 
-        highestBidder = msg.sender;
-        highestBid = msg.value;
+        auctions[_nftId].highestBidder = msg.sender;
+        auctions[_nftId].highestBid = msg.value;
 
-        if (block.timestamp > endAt - 10 minutes) {
-            endAt += 10 minutes;
+        if (block.timestamp > auctions[_nftId].endAt - 10 minutes) {
+            auctions[_nftId].endAt += 10 minutes;
             emit TimeIncreased(msg.sender, 10);    
         }
 
         emit Bid(msg.sender, msg.value);
     }
 
-    function withdraw() external nonReentrant {
-        uint bal = bids[msg.sender];
+    function withdraw(uint _nftId) external isNFTOwner(_nftId, msg.sender) nonReentrant {
+        uint bal = bids[_nftId][msg.sender];
         require(bal > 0, "Not bidder exist");
 
-        bids[msg.sender] = 0;
+        bids[_nftId][msg.sender] = 0;
         payable(msg.sender).transfer(bal);
 
         emit Withdraw(msg.sender, bal);
     }
 
-    function end() external {
-        require(started, "not started");
-        require(block.timestamp >= endAt, "not ended");
-        require(!ended, "ended");
+    function end(uint _nftId) external {
+        require(auctions[_nftId].started, "not started");
+        require(block.timestamp >= auctions[_nftId].endAt, "not ended");
+        require(!auctions[_nftId].ended, "ended");
 
-        ended = true;
-        if (highestBidder != address(0)) {
-            nft.safeTransferFrom(address(this), highestBidder, nftId);
-            seller.transfer(highestBid);
+        auctions[_nftId].ended = true;
+        if (auctions[_nftId].highestBidder != address(0)) {
+            auctions[_nftId].nft.safeTransferFrom(address(this), auctions[_nftId].highestBidder, _nftId);
+            auctions[_nftId].seller.transfer(auctions[_nftId].highestBid);
         } else {
-            nft.safeTransferFrom(address(this), seller, nftId);
+            auctions[_nftId].nft.safeTransferFrom(address(this), auctions[_nftId].seller, _nftId);
         }
 
-        emit End(highestBidder, highestBid);
+        emit End(auctions[_nftId].highestBidder, auctions[_nftId].highestBid);
     }
 }
