@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+// import "@openzeppelin/contracts/utils/Counters.sol";
 
 
 /**
@@ -23,32 +23,33 @@ struct Auction {
     uint endAt;
     bool started;
     bool ended;
+    bool isValue;
 }
 contract NFTAuction is Ownable, ReentrancyGuard{
-    event Start(uint indexed auctionId);
-    event Bid(uint indexed auctionId, address indexed sender, uint amount);
-    event Withdraw(uint indexed auctionId, address indexed bidder, uint amount);
-    event Accept(uint indexed auctionId, address winner, uint amount);
-    event Cancel(uint indexed auctionId, address seller);
-    event TimeIncreased(uint indexed auctionId, address sender, uint increasedMinutes);
+    event Start(bytes32 indexed auctionHash);
+    event Bid(bytes32 indexed auctionHash, address indexed sender, uint amount);
+    event Withdraw(bytes32 indexed auctionHash, address indexed bidder, uint amount);
+    event Accept(bytes32 indexed auctionHash, address winner, uint amount);
+    event Cancel(bytes32 indexed auctionHash, address seller);
+    event TimeIncreased(bytes32 indexed auctionHash, address sender, uint increasedMinutes);
 
-    using Counters for Counters.Counter;
+    // using Counters for Counters.Counter;
 
-    Counters.Counter public auctionId;
+    // Counters.Counter public auctionId;
 
     //AuctionId to Auction Data
-    mapping(uint => Auction) public auctions;
-    mapping(uint => mapping(address => uint)) bids;
-    //Hash to AuctionId
-    mapping(bytes32 => uint) public auctionHashes;
+    mapping(bytes32 => Auction) public auctions;
+    mapping(bytes32 => mapping(address => uint)) bids;
+    // //Hash to AuctionId
+    // mapping(bytes32 => uint) public auctionHashes;
 
-    modifier onlyAuctionOwner(uint _auctionId, address _address) {
-        require(auctions[_auctionId].seller == _address, "not seller");
+    modifier onlyAuctionOwner(bytes32 _auctionHash, address _address) {
+        require(auctions[_auctionHash].seller == _address, "not seller");
         _;
     }
 
-    modifier onlyAuctionStarted(uint _auctionId) {
-        require(auctions[_auctionId].started, "not started");
+    modifier onlyAuctionStarted(bytes32 _auctionHash) {
+        require(auctions[_auctionHash].started, "not started");
         _;
     }
 
@@ -56,37 +57,38 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     // makeHash from auction information
-    function makeHash(address seller, address _nft, uint _nftId) internal pure returns(bytes32) {
-        return keccak256(abi.encode(seller, _nft, _nftId));
-    }
+    // function makeHash(address seller, address _nft, uint _nftId) internal pure returns(bytes32) {
+    //     return keccak256(abi.encode(seller, _nft, _nftId));
+    // }
     
-    function updateAuction(uint _auctionId, address _nft, uint _nftId, uint _startingBid) internal {
+    function updateAuction(bytes32 _auctionHash, address _nft, uint _nftId, uint _startingBid) internal {
         Auction memory auction;
         auction.nft = _nft;
         auction.nftId = _nftId;
         auction.seller = payable(msg.sender);
         auction.highestBid = _startingBid;
-
-        auctions[_auctionId] = auction;
+        auction.isValue = true;
+        auctions[_auctionHash] = auction;
     }
 
     // create or update auction
     function createAuction(address _nft, uint _nftId, uint _startingBid) external {
         require(ERC721(_nft).ownerOf(_nftId) == msg.sender, "not owner of token");
         
-        bytes32 auctionHash = makeHash(msg.sender, _nft, _nftId);
-        uint _auctionId = auctionHashes[auctionHash];
+        // bytes32 auctionHash = makeHash(msg.sender, _nft, _nftId);
+        bytes32 auctionHash = keccak256(abi.encode(msg.sender, _nft, _nftId));
+        // bytes32 _auctionHash = auctionHashes[auctionHash];
 
         //Auction already exists, update if not active otherwise revert
-        if (_auctionId == 0) {
-            auctionId.increment();
-            uint currentId = auctionId.current();
-            auctionHashes[auctionHash] == currentId;   
+        if (!auctions[auctionHash].isValue) {
+            // auctionId.increment();
+            // uint currentId = auctionId.current();
+            // auctionHashes[auctionHash] == currentId;   
             
-            updateAuction(currentId, _nft, _nftId, _startingBid);
+            updateAuction(auctionHash, _nft, _nftId, _startingBid);
         } else {
-            if (!auctions[_auctionId].started) {
-                updateAuction(_auctionId, _nft, _nftId, _startingBid);
+            if (!auctions[auctionHash].started) {
+                updateAuction(auctionHash, _nft, _nftId, _startingBid);
             } else {
                 revert("already started");
             }
@@ -94,83 +96,80 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     // get the seller of the auction
-    function getSeller(uint _auctionId) public onlyOwner view returns(address) {
-        return auctions[_auctionId].seller;
+    function getSeller(bytes32 _auctionHash) public onlyOwner view returns(address) {
+        return auctions[_auctionHash].seller;
     }
 
     function getAcution(bytes32 _auctionHash) public view returns(Auction memory) {
-        return auctions[auctionHashes[_auctionHash]];
+        return auctions[_auctionHash];
     }
 
-    function start(uint _auctionId) external onlyAuctionOwner(_auctionId, msg.sender) {
-        require(!auctions[_auctionId].started, "started");
+    function start(bytes32 _auctionHash) external onlyAuctionOwner(_auctionHash, msg.sender) {
+        require(!auctions[_auctionHash].started, "started");
         
-        auctions[_auctionId].started = true;
-        auctions[_auctionId].endAt = block.timestamp + 7 days;
+        auctions[_auctionHash].started = true;
+        auctions[_auctionHash].endAt = block.timestamp + 7 days;
 
-        emit Start(_auctionId);
+        emit Start(_auctionHash);
     }
 
-    function bid(uint _auctionId) external payable onlyAuctionStarted(_auctionId) {
-        require(!auctions[_auctionId].ended, "auction ended");
-        require(block.timestamp < auctions[_auctionId].endAt, "ended");
-        require(msg.value > auctions[_auctionId].highestBid, "value < highest");
+    function bid(bytes32 _auctionHash) external payable onlyAuctionStarted(_auctionHash) {
+        require(!auctions[_auctionHash].ended, "auction ended");
+        require(block.timestamp < auctions[_auctionHash].endAt, "ended");
+        require(msg.value > auctions[_auctionHash].highestBid, "value < highest");
 
-        if (auctions[_auctionId].highestBidder != address(0)) {
-            bids[_auctionId][auctions[_auctionId].highestBidder] += auctions[_auctionId].highestBid;
+        if (auctions[_auctionHash].highestBidder != address(0)) {
+            bids[_auctionHash][auctions[_auctionHash].highestBidder] += auctions[_auctionHash].highestBid;
         }
 
-        auctions[_auctionId].highestBidder = msg.sender;
-        auctions[_auctionId].highestBid = msg.value;
+        auctions[_auctionHash].highestBidder = msg.sender;
+        auctions[_auctionHash].highestBid = msg.value;
 
-        if (block.timestamp > auctions[_auctionId].endAt - 10 minutes) {
-            auctions[_auctionId].endAt += 10 minutes;
-            emit TimeIncreased(_auctionId, msg.sender, 10);    
+        if (block.timestamp > auctions[_auctionHash].endAt - 10 minutes) {
+            auctions[_auctionHash].endAt += 10 minutes;
+            emit TimeIncreased(_auctionHash, msg.sender, 10);    
         }
 
-        emit Bid(_auctionId, msg.sender, msg.value);
+        emit Bid(_auctionHash, msg.sender, msg.value);
     }
 
-    function withdraw(uint _auctionId) external nonReentrant {
-        require(auctions[_auctionId].ended, "not auction ended");
+    function withdraw(bytes32 _auctionHash) external nonReentrant {
+        require(auctions[_auctionHash].ended, "not auction ended");
 
-        uint bal = bids[_auctionId][msg.sender];
+        uint bal = bids[_auctionHash][msg.sender];
         require(bal > 0, "no bidder exist");
 
-        bids[_auctionId][msg.sender] = 0;
+        bids[_auctionHash][msg.sender] = 0;
         payable(msg.sender).transfer(bal);
 
-        emit Withdraw(_auctionId, msg.sender, bal);
+        emit Withdraw(_auctionHash, msg.sender, bal);
     }
 
-    function accept(uint _auctionId) external 
-        onlyAuctionOwner (_auctionId, msg.sender)
-        onlyAuctionStarted(_auctionId) 
+    function accept(bytes32 _auctionHash) external 
+        onlyAuctionOwner (_auctionHash, msg.sender)
+        onlyAuctionStarted(_auctionHash) 
     {
-        require(block.timestamp >= auctions[_auctionId].endAt, "not ended");
-        require(!auctions[_auctionId].ended, "ended");
+        require(block.timestamp >= auctions[_auctionHash].endAt, "not ended");
+        require(!auctions[_auctionHash].ended, "ended");
 
-        auctions[_auctionId].ended = true;
-        if (auctions[_auctionId].highestBidder != address(0)) {
-            ERC721(auctions[_auctionId].nft).safeTransferFrom(address(this), auctions[_auctionId].highestBidder, _auctionId);
-            auctions[_auctionId].seller.transfer(auctions[_auctionId].highestBid);
+        auctions[_auctionHash].ended = true;
+        if (auctions[_auctionHash].highestBidder != address(0)) {
+            ERC721(auctions[_auctionHash].nft).safeTransferFrom(address(this), auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
+            auctions[_auctionHash].seller.transfer(auctions[_auctionHash].highestBid);
         }
 
-        emit Accept(_auctionId, auctions[_auctionId].highestBidder, auctions[_auctionId].highestBid);
+        emit Accept(_auctionHash, auctions[_auctionHash].highestBidder, auctions[_auctionHash].highestBid);
     }
 
-    function cancel(uint _auctionId) external 
-        onlyAuctionOwner(_auctionId, msg.sender)
-        onlyAuctionStarted(_auctionId)
+    function cancel(bytes32 _auctionHash) external 
+        onlyAuctionOwner(_auctionHash, msg.sender)
+        onlyAuctionStarted(_auctionHash)
     {
-        require(block.timestamp >= auctions[_auctionId].endAt, "not ended");
-        require(!auctions[_auctionId].ended, "ended");
+        require(block.timestamp >= auctions[_auctionHash].endAt, "not ended");
+        require(!auctions[_auctionHash].ended, "ended");
 
-        auctions[_auctionId].ended = true;
+        auctions[_auctionHash].ended = true;
 
-        bytes32 auctionHash = makeHash(auctions[_auctionId].seller, auctions[_auctionId].nft, auctions[_auctionId].nftId);
-        delete auctionHashes[auctionHash];
-
-        emit Cancel(_auctionId, msg.sender);
+        emit Cancel(_auctionHash, msg.sender);
     }
 }
