@@ -370,7 +370,7 @@ describe("Test NFTauction withdraw()", function () {
       value: 13
     });
 
-    await expect( nftAuction.connect(accounts[2]).withdraw(2)).to.be.revertedWith("Not bidder exist");
+    await expect( nftAuction.connect(accounts[2]).withdraw(2)).to.be.revertedWith("no bidder exist");
   });
 
   it("Should withdraw for only bidder", async function () {
@@ -386,6 +386,6 @@ describe("Test NFTauction withdraw()", function () {
       value: 12
     });
 
-   await expect( nftAuction.connect(accounts[2]).withdraw(2)).to.be.revertedWith("Not bidder exist");
+   await expect( nftAuction.connect(accounts[2]).withdraw(2)).to.be.revertedWith("no bidder exist");
   });
 });
