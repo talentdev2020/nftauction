@@ -61,34 +61,32 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     //     return keccak256(abi.encode(seller, _nft, _nftId));
     // }
     
-    function updateAuction(bytes32 _auctionHash, address _nft, uint _nftId, uint _startingBid) internal {
+    function _createAuction(bytes32 _auctionHash, address _nft, uint _nftId, uint _startingBid, address _seller) internal {
         Auction memory auction;
         auction.nft = _nft;
         auction.nftId = _nftId;
-        auction.seller = payable(msg.sender);
+        auction.seller = payable(_seller);
         auction.highestBid = _startingBid;
         auction.isValue = true;
+
         auctions[_auctionHash] = auction;
+    }
+    
+    function _updateAuction(bytes32 _auctionHash, uint _startingBid) internal {
+        auctions[_auctionHash].highestBid = _startingBid;
     }
 
     // create or update auction
     function createAuction(address _nft, uint _nftId, uint _startingBid) external {
         require(ERC721(_nft).ownerOf(_nftId) == msg.sender, "not owner of token");
         
-        // bytes32 auctionHash = makeHash(msg.sender, _nft, _nftId);
-        bytes32 auctionHash = keccak256(abi.encode(msg.sender, _nft, _nftId));
-        // bytes32 _auctionHash = auctionHashes[auctionHash];
-
+        bytes32 auctionHash = keccak256(abi.encodePacked(msg.sender, _nft, _nftId));
         //Auction already exists, update if not active otherwise revert
         if (!auctions[auctionHash].isValue) {
-            // auctionId.increment();
-            // uint currentId = auctionId.current();
-            // auctionHashes[auctionHash] == currentId;   
-            
-            updateAuction(auctionHash, _nft, _nftId, _startingBid);
+            _createAuction(auctionHash, _nft, _nftId, _startingBid, msg.sender);
         } else {
             if (!auctions[auctionHash].started) {
-                updateAuction(auctionHash, _nft, _nftId, _startingBid);
+                _updateAuction(auctionHash, _startingBid);
             } else {
                 revert("already started");
             }
@@ -100,7 +98,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         return auctions[_auctionHash].seller;
     }
 
-    function getAcution(bytes32 _auctionHash) public view returns(Auction memory) {
+    function getAuction(bytes32 _auctionHash) public view returns(Auction memory) {
         return auctions[_auctionHash];
     }
 
@@ -154,7 +152,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
 
         auctions[_auctionHash].ended = true;
         if (auctions[_auctionHash].highestBidder != address(0)) {
-            ERC721(auctions[_auctionHash].nft).safeTransferFrom(address(this), auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
+            ERC721(auctions[_auctionHash].nft).safeTransferFrom(auctions[_auctionHash].seller, auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
             auctions[_auctionHash].seller.transfer(auctions[_auctionHash].highestBid);
         }
 
@@ -165,7 +163,6 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         onlyAuctionOwner(_auctionHash, msg.sender)
         onlyAuctionStarted(_auctionHash)
     {
-        require(block.timestamp >= auctions[_auctionHash].endAt, "not ended");
         require(!auctions[_auctionHash].ended, "ended");
 
         auctions[_auctionHash].ended = true;

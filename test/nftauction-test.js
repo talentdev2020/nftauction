@@ -5,6 +5,7 @@ describe("Test NFTauction createAuction()", function () {
   let nftAuction;
   let mockNFT;
   let accounts;
+  let auctionHashes = [];
 
   it("Should set the seller of auction with the caller", async function () {
     accounts = await ethers.getSigners();
@@ -19,18 +20,35 @@ describe("Test NFTauction createAuction()", function () {
    
     // token Id '2' auction with '10' starting amount
     await nftAuction.createAuction(mockNFT.address, 2, 10)
-    const seller1 = await nftAuction.getSeller(2);
 
     // token Id '3' auction with '11' starting amount
     await nftAuction.createAuction(mockNFT.address, 3, 10)
-    const seller2 = await nftAuction.getSeller(3);
+   
+    auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
+    auctionHashes[1] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 3]);
+
+    const seller1 = await nftAuction.getSeller(auctionHashes[0]);
+    const seller2 = await nftAuction.getSeller(auctionHashes[1]);
 
     expect( seller1 ).to.equal(accounts[0].address);
     expect( seller2 ).to.equal(accounts[0].address);
   });
-  it("Should not create with existing auction", async function () {
-    await expect( nftAuction.createAuction(mockNFT.address, 2, 10)).to.be.revertedWith("already created");
+
+  it("Should update the auction with startingBid 11", async function () {
+    await nftAuction.createAuction(mockNFT.address, 2, 11);
+    hash = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
+    const auction = await nftAuction.getAuction(hash);
+
+    await expect( auction.highestBid).to.be.equal("11");
   });
+  
+  it("Should not create/update after started the auction", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start(auctionHashes[0]);
+
+    await expect( nftAuction.createAuction(mockNFT.address, 2, 10)).to.be.revertedWith("already started");
+  });
+
   it("Should not create for the not owner of token", async function () {
     await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 5, 10)).to.be.revertedWith("not owner of token");
   });
@@ -40,6 +58,7 @@ describe("Test NFTauction start()", function () {
   let nftAuction;
   let mockNFT;
   let accounts;
+  let auctionHashes = [];
 
   it("Should create auctions", async function () {
     accounts = await ethers.getSigners();
@@ -63,29 +82,26 @@ describe("Test NFTauction start()", function () {
     await mockNFT.transferFrom(accounts[0].address, accounts[1].address, 4);
     await nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, 10);
 
-    const seller = await nftAuction.getSeller(4);
+    auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
+    auctionHashes[1] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 3]);
+    auctionHashes[2] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[1].address, mockNFT.address, 4]);
+
+    const seller = await nftAuction.getSeller(auctionHashes[2]);
     expect( seller ).to.equal(accounts[1].address);
 
   })
 
   it("Should only start with seller", async function () {
-    await expect( nftAuction.connect(accounts[1]).start(2)).to.be.revertedWith("not seller");
+    await expect( nftAuction.connect(accounts[1]).start(auctionHashes[0])).to.be.revertedWith("not seller");
 
-    await expect( nftAuction.start(4)).to.be.revertedWith("not seller");
-  });
-
-  it("Should start muliple auctions and deposit them to the contract", async function () {
-    await mockNFT.approve(nftAuction.address, 2);
-    await mockNFT.approve(nftAuction.address, 3);
-    await nftAuction.start(2);
-    await nftAuction.start(3);
-
-    const balance = await mockNFT.balanceOf(nftAuction.address);
-    expect(balance.toString()).to.equal("2");
+    await expect( nftAuction.start(auctionHashes[2])).to.be.revertedWith("not seller");
   });
 
   it("Should not start if already started", async function () {
-    await expect( nftAuction.start(2)).to.be.revertedWith("started");
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start(auctionHashes[0]);
+
+    await expect( nftAuction.start(auctionHashes[0])).to.be.revertedWith("started");
   }); 
 });
 
@@ -93,6 +109,7 @@ describe("Test NFTauction bid()", function () {
   let nftAuction;
   let mockNFT;
   let accounts;
+  let auctionHashes = [];
 
   beforeEach(async function () {
     accounts = await ethers.getSigners();
@@ -111,24 +128,29 @@ describe("Test NFTauction bid()", function () {
      // token Id '3' auction with '10' starting amount for owner
      await nftAuction.createAuction(mockNFT.address, 3, 10);
  
+     // send token 4 from owner to account1
+      await mockNFT.approve(accounts[1].address, 4);
+      await mockNFT.transferFrom(accounts[0].address, accounts[1].address, 4);
      // token Id '4' auction with '10' starting amount for account1
-     await mockNFT.approve(accounts[1].address, 4);
-     await mockNFT.transferFrom(accounts[0].address, accounts[1].address, 4);
      await nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, 10);
+
+    auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
+    auctionHashes[1] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 3]);
+    auctionHashes[2] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[1].address, mockNFT.address, 4]);
   })
   
   it("Should not bid before started", async function () {
-    await expect( nftAuction.bid(2)).to.be.revertedWith("not started");
+    await expect( nftAuction.bid(auctionHashes[0])).to.be.revertedWith("not started");
   });
 
   it("Should not bid after end time passed", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
     await ethers.provider.send('evm_increaseTime', [1000 * 60 * 60 * 24 * 7 + 1]);
     await ethers.provider.send('evm_mine');
 
-    await expect( nftAuction.bid(2, {
+    await expect( nftAuction.bid(auctionHashes[0], {
       from: accounts[0].address,
       value: 15
     })).to.be.revertedWith("ended");
@@ -136,13 +158,13 @@ describe("Test NFTauction bid()", function () {
   
   it("Should not bid with samller amount than current highest bid ", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
-    await nftAuction.connect(accounts[1]).bid(2, {
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 15
     })
-    await expect( nftAuction.connect(accounts[2]).bid(2, {
+    await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
       value: 15
     })).to.be.revertedWith("value < highest");
@@ -150,75 +172,76 @@ describe("Test NFTauction bid()", function () {
   
   it("Should increase end time with 10 mins", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 - 60]);
     await ethers.provider.send('evm_mine');
 
-    await expect( nftAuction.connect(accounts[1]).bid(2, {
+    await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 20
     })).to.emit(nftAuction, "TimeIncreased")
-    .withArgs(accounts[1].address, 10);
+    .withArgs(auctionHashes[0], accounts[1].address, 10);
   });
 
   it("Should increase end time with 10 mins for multiple actions", async function () {
     await mockNFT.approve(nftAuction.address, 2);
     await mockNFT.connect(accounts[1]).approve(nftAuction.address, 4);
-    await nftAuction.start(2);
-    await nftAuction.connect(accounts[1]).start(4);
+    await nftAuction.start(auctionHashes[0]);
+    await nftAuction.connect(accounts[1]).start(auctionHashes[2]);
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 - 60]);
     await ethers.provider.send('evm_mine');
 
-    await expect( nftAuction.connect(accounts[1]).bid(2, {
+    await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 20
     })).to.emit(nftAuction, "TimeIncreased")
-    .withArgs(accounts[1].address, 10);
+    .withArgs(auctionHashes[0], accounts[1].address, 10);
 
-    await expect( nftAuction.connect(accounts[2]).bid(4, {
+    await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[2], {
       from: accounts[2].address,
       value: 20
     })).to.emit(nftAuction, "TimeIncreased")
-    .withArgs(accounts[2].address, 10);
+    .withArgs(auctionHashes[2], accounts[2].address, 10);
   });
 
   it("Should emit Bid event", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
-    await expect( nftAuction.connect(accounts[1]).bid(2, {
+    await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 20
     })).to.emit(nftAuction, "Bid")
-    .withArgs(accounts[1].address, 20);
+    .withArgs(auctionHashes[0], accounts[1].address, 20);
   });
  
   it("Should emit Bid event for muliple acutions", async function () {
     await mockNFT.approve(nftAuction.address, 2);
     await mockNFT.connect(accounts[1]).approve(nftAuction.address, 4);
-    await nftAuction.start(2);
-    await nftAuction.connect(accounts[1]).start(4);
+    await nftAuction.start(auctionHashes[0]);
+    await nftAuction.connect(accounts[1]).start(auctionHashes[2]);
 
-    await expect( nftAuction.connect(accounts[1]).bid(2, {
+    await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 20
     })).to.emit(nftAuction, "Bid")
-    .withArgs(accounts[1].address, 20);
+    .withArgs(auctionHashes[0], accounts[1].address, 20);
    
-    await expect( nftAuction.connect(accounts[1]).bid(4, {
-      from: accounts[1].address,
-      value: 20
+    await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[2], {
+      from: accounts[2].address,
+      value: 30
     })).to.emit(nftAuction, "Bid")
-    .withArgs(accounts[1].address, 20);
+    .withArgs(auctionHashes[2], accounts[2].address, 30);
   });
 });
 
-describe("Test NFTAuction end()", function () {
+describe("Test NFTAuction accept()", function () {
   let nftAuction;
   let mockNFT;
   let accounts;
+  let auctionHashes = [];
   
   beforeEach(async function () {
     accounts = await ethers.getSigners();
@@ -241,82 +264,145 @@ describe("Test NFTAuction end()", function () {
      await mockNFT.approve(accounts[1].address, 4);
      await mockNFT.transferFrom(accounts[0].address, accounts[1].address, 4);
      await nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, 10);
+
+    auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
+    auctionHashes[1] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 3]);
+    auctionHashes[2] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[1].address, mockNFT.address, 4]);
   })
 
-  it("Should not end before started", async function () {
-    await expect( nftAuction.end(2)).to.be.revertedWith("not started");
+  it("Should not accept before started", async function () {
+    await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("not started");
   });
   
-  it("Should not end before end time passed", async function () {
+  it("Should not accept before end time passed", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 - 10]);
     await ethers.provider.send('evm_mine');
 
-    await expect( nftAuction.end(2)).to.be.revertedWith("not ended");
+    // before end time
+    await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("not ended");
   });
  
-  it("Should not end after ended", async function () {
+  it("Should not accept after ended", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
     await ethers.provider.send('evm_mine');
-    await nftAuction.end(2);
+    await nftAuction.accept(auctionHashes[0]);
 
-    await expect( nftAuction.end(2)).to.be.revertedWith("ended");
+    await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("ended");
   });
 
   it("Should pay to the seller and send NFTs to highest bidders: multiple actions for Token2 and Token3", async function () {
     await mockNFT.approve(nftAuction.address, 2);
     await mockNFT.approve(nftAuction.address, 3);
-    await nftAuction.start(2);
-    await nftAuction.start(3);
+    await nftAuction.start(auctionHashes[0]);
+    await nftAuction.start(auctionHashes[1]);
 
-    await nftAuction.connect(accounts[1]).bid(2, {
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 20
     })
-    await nftAuction.connect(accounts[2]).bid(3, {
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[1], {
       from: accounts[2].address,
-      value: 20
+      value: 30
     })
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
     await ethers.provider.send('evm_mine');
 
-    await expect(() => nftAuction.end(2)).to.changeEtherBalance(accounts[0], 20);
-    await expect(() => nftAuction.end(3)).to.changeEtherBalance(accounts[0], 20);
-
+    await expect(() => nftAuction.accept(auctionHashes[0])).to.changeEtherBalance(accounts[0], 20);
+    await expect(() => nftAuction.accept(auctionHashes[1])).to.changeEtherBalance(accounts[0], 30);
+    
+    // account1 has token 4 initially and got token2
     const balance1 = await mockNFT.balanceOf(accounts[1].address);
     await expect( balance1.toString()).to.equal("2");
     
     const balance2 = await mockNFT.balanceOf(accounts[2].address);
     await expect( balance2.toString()).to.equal("1");
   });
-  
-  it("Should refund NFT to the seller when not bid", async function () {
-    await mockNFT.approve(nftAuction.address, 2);
-    await mockNFT.approve(nftAuction.address, 3);
-    await nftAuction.start(2);
-    await nftAuction.start(3);
-
-    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 +1]);
-    await ethers.provider.send('evm_mine');
-
-    await expect(() => nftAuction.end(2))
-    .to.changeTokenBalance(mockNFT, accounts[0], 1);
-    
-    await expect(() => nftAuction.end(3))
-    .to.changeTokenBalance(mockNFT, accounts[0], 1);
-  }); 
 });
+
+describe("Test NFTAuction cancel()", function () {
+  let nftAuction;
+  let mockNFT;
+  let accounts;
+  let auctionHashes = [];
+  
+  beforeEach(async function () {
+    accounts = await ethers.getSigners();
+
+    const MockNFT = await ethers.getContractFactory("MockNFT");
+    mockNFT = await MockNFT.deploy();
+    await mockNFT.deployed();
+
+    const NFTAuction = await ethers.getContractFactory("NFTAuction");
+    nftAuction = await NFTAuction.deploy();
+    await nftAuction.deployed();
+
+     // token Id '2' auction with '10' starting amount for owner
+     await nftAuction.createAuction(mockNFT.address, 2, 10);
+
+     // token Id '3' auction with '10' starting amount for owner
+     await nftAuction.createAuction(mockNFT.address, 3, 10);
+ 
+     // token Id '4' auction with '10' starting amount for account1
+     await mockNFT.approve(accounts[1].address, 4);
+     await mockNFT.transferFrom(accounts[0].address, accounts[1].address, 4);
+     await nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, 10);
+
+    auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
+    auctionHashes[1] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 3]);
+    auctionHashes[2] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[1].address, mockNFT.address, 4]);
+  })
+
+  it("Should not cancel before started", async function () {
+    await expect( nftAuction.cancel(auctionHashes[0])).to.be.revertedWith("not started");
+  });
+ 
+  it("Should not accept after ended", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start(auctionHashes[0]);
+
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
+    await ethers.provider.send('evm_mine');
+    await nftAuction.accept(auctionHashes[0]);
+
+    await expect( nftAuction.cancel(auctionHashes[0])).to.be.revertedWith("ended");
+  });
+
+  it("Should not start after canceled", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start(auctionHashes[0]);
+
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
+    await ethers.provider.send('evm_mine');
+    await nftAuction.cancel(auctionHashes[0]);
+
+    await expect( nftAuction.start(auctionHashes[0])).to.be.revertedWith("started");
+  });
+
+  it("Should not accept after canceled", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start(auctionHashes[0]);
+
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
+    await ethers.provider.send('evm_mine');
+    await nftAuction.cancel(auctionHashes[0]);
+
+    await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("ended");
+  });
+});
+
 
 describe("Test NFTauction withdraw()", function () {
   let nftAuction;
   let mockNFT;
   let accounts;
+  let auctionHashes = []
 
   beforeEach(async function () {
     accounts = await ethers.getSigners();
@@ -331,61 +417,76 @@ describe("Test NFTauction withdraw()", function () {
 
     // token Id '2' auction with '10' starting amount
     await nftAuction.createAuction(mockNFT.address, 2, 10)
+    auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
   })
-  
+
+  it("Should not withdraw before end", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.start(auctionHashes[0]);
+
+    await nftAuction.bid(auctionHashes[0], {
+      from: accounts[0].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 12
+    });
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 13
+    });
+    
+    await expect(nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.revertedWith("not auction ended");
+  });
+
   it("Should withdraw the bid for the account1", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
-    await nftAuction.bid(2, {
+    await nftAuction.bid(auctionHashes[0], {
       from: accounts[0].address,
       value: 11
     });
-    await nftAuction.connect(accounts[1]).bid(2, {
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 12
     });
-    await nftAuction.connect(accounts[2]).bid(2, {
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
       value: 13
     });
 
-    await expect(() => nftAuction.connect(accounts[1]).withdraw(2)).to.be.changeEtherBalance(accounts[1], 12);
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
+    await ethers.provider.send('evm_mine');
+
+    await nftAuction.accept(auctionHashes[0]);
+
+    await expect(() => nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[1], 12);
   });
 
-  it("Should not withdraw for the highest bidder", async function () {
+  it("Should withdraw for only bidder or not highest bidder", async function () {
     await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
+    await nftAuction.start(auctionHashes[0]);
 
-    await nftAuction.bid(2, {
+    await nftAuction.bid(auctionHashes[0],{
       from: accounts[0].address,
       value: 11
     });
-    await nftAuction.connect(accounts[1]).bid(2, {
-      from: accounts[1].address,
-      value: 12
-    });
-    await nftAuction.connect(accounts[2]).bid(2, {
-      from: accounts[2].address,
-      value: 13
-    });
-
-    await expect( nftAuction.connect(accounts[2]).withdraw(2)).to.be.revertedWith("no bidder exist");
-  });
-
-  it("Should withdraw for only bidder", async function () {
-    await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(2);
-
-    await nftAuction.bid(2,{
-      from: accounts[0].address,
-      value: 11
-    });
-    await nftAuction.connect(accounts[1]).bid(2,{
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
       from: accounts[1].address,
       value: 12
     });
 
-   await expect( nftAuction.connect(accounts[2]).withdraw(2)).to.be.revertedWith("no bidder exist");
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
+    await ethers.provider.send('evm_mine');
+
+    await nftAuction.accept(auctionHashes[0]);
+
+  // for not existing bidder
+   await expect( nftAuction.connect(accounts[2]).withdraw(auctionHashes[0])).to.be.revertedWith("no bidder exist");
+
+   // for highest bidder
+   await expect( nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.revertedWith("no bidder exist");
   });
 });
