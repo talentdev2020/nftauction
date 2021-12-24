@@ -147,7 +147,6 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         onlyAuctionOwner (_auctionHash, msg.sender)
         onlyAuctionStarted(_auctionHash) 
     {
-        require(block.timestamp >= auctions[_auctionHash].endAt, "not ended");
         require(!auctions[_auctionHash].ended, "ended");
 
         auctions[_auctionHash].ended = true;

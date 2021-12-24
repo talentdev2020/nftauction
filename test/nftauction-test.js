@@ -274,17 +274,6 @@ describe("Test NFTAuction accept()", function () {
     await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("not started");
   });
   
-  it("Should not accept before end time passed", async function () {
-    await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(auctionHashes[0]);
-
-    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 - 10]);
-    await ethers.provider.send('evm_mine');
-
-    // before end time
-    await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("not ended");
-  });
- 
   it("Should not accept after ended", async function () {
     await mockNFT.approve(nftAuction.address, 2);
     await nftAuction.start(auctionHashes[0]);
