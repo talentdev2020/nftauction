@@ -24,6 +24,7 @@ struct Auction {
     bool started;
     bool ended;
     bool isValue;
+    uint hashId;
 }
 contract NFTAuction is Ownable, ReentrancyGuard{
     event Start(bytes32 indexed auctionHash);
@@ -40,6 +41,8 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     //AuctionId to Auction Data
     mapping(bytes32 => Auction) public auctions;
     mapping(bytes32 => mapping(address => uint)) bids;
+    bytes32[] public auctionHashes;
+    uint runTime = 3 days;
     // //Hash to AuctionId
     // mapping(bytes32 => uint) public auctionHashes;
 
@@ -53,6 +56,18 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         _;
     }
 
+    function count() public view returns(uint){
+        return auctionHashes.length;
+    }
+
+    function hashes() public view returns(bytes32[] memory){
+        return auctionHashes;
+    }
+
+    function updateRuntime(uint _time) public onlyOwner{
+        runTime = _time;
+    }
+
     constructor() {
     }
 
@@ -62,13 +77,14 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     // }
     
     function _createAuction(bytes32 _auctionHash, address _nft, uint _nftId, uint _startingBid, address _seller) internal {
+        auctionHashes.push(_auctionHash);
         Auction memory auction;
         auction.nft = _nft;
         auction.nftId = _nftId;
         auction.seller = payable(_seller);
         auction.highestBid = _startingBid;
         auction.isValue = true;
-
+        auction.hashId = count() - 1;
         auctions[_auctionHash] = auction;
     }
     
@@ -106,7 +122,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         require(!auctions[_auctionHash].started, "started");
         
         auctions[_auctionHash].started = true;
-        auctions[_auctionHash].endAt = block.timestamp + 7 days;
+        auctions[_auctionHash].endAt = block.timestamp + runTime;
 
         emit Start(_auctionHash);
     }
