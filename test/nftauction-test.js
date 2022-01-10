@@ -544,3 +544,51 @@ describe("Test NFTauction withdraw()", function () {
    await expect( nftAuction.withdraw(auctionHashes[0])).to.be.revertedWith("already withdrawn");
   });
 });
+
+describe("Test NFTauction getAllBids()", function () {
+  let nftAuction;
+  let mockNFT;
+  let accounts;
+  let auctionHashes = []
+
+  beforeEach(async function () {
+    accounts = await ethers.getSigners();
+
+    const MockNFT = await ethers.getContractFactory("MockNFT");
+    mockNFT = await MockNFT.deploy();
+    await mockNFT.deployed();
+
+    const NFTAuction = await ethers.getContractFactory("NFTAuction");
+    nftAuction = await NFTAuction.deploy();
+    await nftAuction.deployed();
+
+    // token Id '2' auction with '10' starting amount
+    await nftAuction.createAuction(mockNFT.address, 2, 10)
+    auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
+  })
+
+  it("Should return all bids", async function () {
+    await nftAuction.start(auctionHashes[0]);
+
+    await nftAuction.bid(auctionHashes[0], {
+      from: accounts[0].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 12
+    });
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 13
+    });
+   
+    const auctions = await nftAuction.getAllBids(auctionHashes[0]);
+
+    expect(auctions.length).to.be.equal(3);
+    expect(auctions[0].bidder).to.be.equal(accounts[0].address);
+    expect(auctions[1].bidder).to.be.equal(accounts[1].address);
+    expect(auctions[2].bidder).to.be.equal(accounts[2].address);
+
+  });
+});
