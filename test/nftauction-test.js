@@ -459,25 +459,25 @@ describe("Test NFTauction withdraw()", function () {
     auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
   })
 
-  it("Should not withdraw before end", async function () {
-    await mockNFT.approve(nftAuction.address, 2);
-    await nftAuction.start(auctionHashes[0]);
+  // it("Should not withdraw before end", async function () {
+  //   await mockNFT.approve(nftAuction.address, 2);
+  //   await nftAuction.start(auctionHashes[0]);
 
-    await nftAuction.bid(auctionHashes[0], {
-      from: accounts[0].address,
-      value: 11
-    });
-    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
-      from: accounts[1].address,
-      value: 12
-    });
-    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
-      from: accounts[2].address,
-      value: 13
-    });
+  //   await nftAuction.bid(auctionHashes[0], {
+  //     from: accounts[0].address,
+  //     value: 11
+  //   });
+  //   await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+  //     from: accounts[1].address,
+  //     value: 12
+  //   });
+  //   await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+  //     from: accounts[2].address,
+  //     value: 13
+  //   });
    
-    await expect(nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.revertedWith("not auction ended");
-  });
+  //   await expect(nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.revertedWith("not auction ended");
+  // });
 
   it("Should withdraw the bid for outbid: account1", async function () {
     await mockNFT.approve(nftAuction.address, 2);

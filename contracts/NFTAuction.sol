@@ -174,7 +174,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function withdraw(bytes32 _auctionHash) external nonReentrant {
-        require(auctions[_auctionHash].ended, "not auction ended");
+        // require(auctions[_auctionHash].ended, "not auction ended");
         require(auctions[_auctionHash].highestBidder != msg.sender, "not available for highest bidder");
         
         uint bidIndex = getBidIndex(_auctionHash, msg.sender);
