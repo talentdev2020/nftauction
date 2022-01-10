@@ -21,6 +21,7 @@ struct Auction {
 struct BidInfo{
   address bidder;
   uint value;
+  bool hasWithdrawn;
 }
 
 contract NFTAuction is Ownable, ReentrancyGuard{
@@ -111,7 +112,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         return auctions[_auctionHash];
     }
 
-    function start(bytes32 _auctionHash) external onlyAuctionOwner(_auctionHash, msg.sender) {
+    function start(bytes32 _auctionHash) external onlyOwner {
         require(!auctions[_auctionHash].started, "started");
         
         auctions[_auctionHash].started = true;
@@ -124,21 +125,12 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         uint256 len = bids[_auctionHash].length;
         
         for(uint256 i = 0; i < len; i ++) {
-            if (bids[_auctionHash][i].bidder == _address) {
+            if (bids[_auctionHash][i].bidder == _address && !bids[_auctionHash][i].hasWithdrawn) {
                 return i;
             }
         }
         
         return type(uint256).max;
-    }
-
-    function isExistBidder(bytes32 _auctionHash, address _address) external view returns (bool) {
-        uint bidIndex = getBidIndex(_auctionHash, _address);
-        if (type(uint256).max != bidIndex && bids[_auctionHash][bidIndex].value > 0) {
-            return true;
-        } else {
-            return false;
-        }         
     }
 
     function bid(bytes32 _auctionHash) external payable onlyAuctionStarted(_auctionHash) {
@@ -174,16 +166,14 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function withdraw(bytes32 _auctionHash) external nonReentrant {
-        // require(auctions[_auctionHash].ended, "not auction ended");
         require(auctions[_auctionHash].highestBidder != msg.sender, "not available for highest bidder");
         
         uint bidIndex = getBidIndex(_auctionHash, msg.sender);
         require(type(uint256).max != bidIndex, "no bidder exist");
 
         uint balance = bids[_auctionHash][bidIndex].value;   
-        require(balance > 0, "already withdrawn");
 
-        bids[_auctionHash][bidIndex].value = 0;
+        bids[_auctionHash][bidIndex].hasWithdrawn = true;
         payable(msg.sender).transfer(balance);
 
         emit Withdraw(_auctionHash, msg.sender, balance);
