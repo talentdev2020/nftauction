@@ -4,16 +4,8 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-// import "@openzeppelin/contracts/utils/Counters.sol";
+import "hardhat/console.sol";
 
-
-/**
-question:
-  
-  For the event, auctionhash or actionId
-  For all function, auction id or action hash?
-  Why auctionHash?
- */
 struct Auction {
     address nft;
     address payable seller;
@@ -29,7 +21,6 @@ struct Auction {
 struct BidInfo{
   address bidder;
   uint value;
-  bool hasWithdrawn;
 }
 
 contract NFTAuction is Ownable, ReentrancyGuard{
@@ -129,11 +120,11 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         emit Start(_auctionHash);
     }
 
-    function getBidIndex(bytes32 _auctionHash, address _address) internal returns (uint256) {
+    function getBidIndex(bytes32 _auctionHash, address _address) internal view returns (uint256) {
         uint256 len = bids[_auctionHash].length;
         
         for(uint256 i = 0; i < len; i ++) {
-            if ((bids[_auctionHash][i].bidder == _address) && (!bids[_auctionHash][i].hasWithdrawn)) {
+            if (bids[_auctionHash][i].bidder == _address) {
                 return i;
             }
         }
@@ -141,8 +132,13 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         return type(uint256).max;
     }
 
-    function isExistBidder(bytes32 _auctionHash, address _address) external returns (bool) {
-        return getBidIndex(_auctionHash, _address) == type(uint256).max;
+    function isExistBidder(bytes32 _auctionHash, address _address) external view returns (bool) {
+        uint bidIndex = getBidIndex(_auctionHash, _address);
+        if (type(uint256).max != bidIndex && bids[_auctionHash][bidIndex].value > 0) {
+            return true;
+        } else {
+            return false;
+        }         
     }
 
     function bid(bytes32 _auctionHash) external payable onlyAuctionStarted(_auctionHash) {
@@ -150,23 +146,24 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         require(block.timestamp < auctions[_auctionHash].endAt, "ended");
 
         uint bidIndex = getBidIndex(_auctionHash, msg.sender);
-   
+        uint newBidAmount = msg.value;
         if (type(uint256).max != bidIndex) {
-            bids[_auctionHash][bidIndex].value += msg.value;
+            newBidAmount = bids[_auctionHash][bidIndex].value + msg.value;
             
-            require(bids[_auctionHash][bidIndex].value > auctions[_auctionHash].highestBid, "value < highest");
-        } else {
+            require(newBidAmount > auctions[_auctionHash].highestBid, "value < highest");
+            bids[_auctionHash][bidIndex].value = newBidAmount;
+         } else {
             require(msg.value > auctions[_auctionHash].highestBid, "value < highest");
 
             BidInfo memory newBid;
             newBid.value = msg.value;
             newBid.bidder = msg.sender;
 
-            bids[_auctionHash][bidIndex] = newBid;
+            bids[_auctionHash].push(newBid);
         }
 
         auctions[_auctionHash].highestBidder = msg.sender;
-        auctions[_auctionHash].highestBid = msg.value;
+        auctions[_auctionHash].highestBid = newBidAmount;
 
         if (block.timestamp > auctions[_auctionHash].endAt - 10 minutes) {
             auctions[_auctionHash].endAt += 10 minutes;
@@ -178,13 +175,15 @@ contract NFTAuction is Ownable, ReentrancyGuard{
 
     function withdraw(bytes32 _auctionHash) external nonReentrant {
         require(auctions[_auctionHash].ended, "not auction ended");
+        require(auctions[_auctionHash].highestBidder != msg.sender, "not available for highest bidder");
         
         uint bidIndex = getBidIndex(_auctionHash, msg.sender);
         require(type(uint256).max != bidIndex, "no bidder exist");
 
         uint balance = bids[_auctionHash][bidIndex].value;   
+        require(balance > 0, "already withdrawn");
+
         bids[_auctionHash][bidIndex].value = 0;
-        bids[_auctionHash][bidIndex].hasWithdrawn = true;
         payable(msg.sender).transfer(balance);
 
         emit Withdraw(_auctionHash, msg.sender, balance);
