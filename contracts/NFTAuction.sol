@@ -45,8 +45,13 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     // //Hash to AuctionId
     // mapping(bytes32 => uint) public auctionHashes;
 
-    modifier onlyAuctionOwner(bytes32 _auctionHash, address _address) {
-        require(auctions[_auctionHash].seller == _address, "not seller");
+    modifier onlyAuctionOwner(bytes32 _auctionHash) {
+        require(auctions[_auctionHash].seller == msg.sender, "not seller");
+        _;
+    }
+
+    modifier restricted(bytes32 _auctionHash){
+        require(auctions[_auctionHash].seller == msg.sender || owner() == msg.sender , "not owner");
         _;
     }
 
@@ -112,13 +117,23 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         return auctions[_auctionHash];
     }
 
-    function start(bytes32 _auctionHash) external onlyOwner {
+    function start(bytes32 _auctionHash) public restricted(_auctionHash) {
         require(!auctions[_auctionHash].started, "started");
         
         auctions[_auctionHash].started = true;
         auctions[_auctionHash].endAt = block.timestamp + runTime;
 
         emit Start(_auctionHash);
+    }
+    
+    function startAll() external onlyOwner {
+        uint256 len = auctionHashes.length;
+        
+        for(uint256 i = 0; i < len; i ++) {
+            if(!auctions[auctionHashes[i]].started) {
+                start(auctionHashes[i]);
+            }
+        }
     }
 
     function getBidIndex(bytes32 _auctionHash, address _address) internal view returns (uint256) {
@@ -184,7 +199,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function accept(bytes32 _auctionHash) external 
-        onlyAuctionOwner (_auctionHash, msg.sender)
+        onlyAuctionOwner (_auctionHash)
         onlyAuctionStarted(_auctionHash) 
     {
         require(!auctions[_auctionHash].ended, "ended");
@@ -199,7 +214,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function cancel(bytes32 _auctionHash) external 
-        onlyAuctionOwner(_auctionHash, msg.sender)
+        onlyAuctionOwner(_auctionHash)
         onlyAuctionStarted(_auctionHash)
     {
         require(!auctions[_auctionHash].ended, "ended");
