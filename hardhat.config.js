@@ -1,5 +1,8 @@
 // require('hardhat-abi-exporter');
 require("@nomiclabs/hardhat-waffle");
+require('hardhat-abi-exporter');
+
+const { SIGNER } = require('./.secret.json');
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -31,12 +34,12 @@ module.exports = {
     cronos : {
       url : "https://evm-cronos.crypto.org",
       chainId: 25,
-      accounts: process.env.SIGNER !== undefined ? [process.env.SIGNER] : [],
+      accounts: SIGNER !== undefined ? [SIGNER] : [],
     },
     cronos_testnet : {
       url : "https://cronos-testnet-3.crypto.org:8545/",
       chainId : 338,
-      accounts:  process.env.SIGNER !== undefined ? [process.env.SIGNER] : [],
+      accounts:  SIGNER !== undefined ? [SIGNER] : [],
     }
   },
   paths: {
@@ -45,10 +48,13 @@ module.exports = {
     cache: "./cache",
     artifacts: "./artifacts"
   },
-    abiExporter: {
-    path: './artifacts/abi',
+   
+  abiExporter: {
+    path: './abi',
+    runOnCompile: true,
     clear: true,
     flat: true,
+    only: [],
     spacing: 2,
     pretty: true,
   }

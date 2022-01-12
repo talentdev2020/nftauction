@@ -496,3 +496,55 @@ describe("Test NFTauction getAllBids()", function () {
 
   });
 });
+
+describe("Test NFTauction minimumBid()", function () {
+  let nftAuction;
+  let accounts;
+  let auctionHashes = []
+
+  beforeEach(async function () {
+    const initData = await init();
+
+    ({accounts, nftAuction, auctionHashes} = initData);
+  })
+
+  it("Should return correct next highest bid", async function () {
+    await nftAuction.startAll();
+
+    await nftAuction.bid(auctionHashes[0], {
+      from: accounts[0].address,
+      value: 11
+    });
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(10);
+
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 101
+    });
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(50);
+
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 1001
+    });
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(100);
+
+    await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
+      from: accounts[3].address,
+      value: 5000
+    });
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(100);
+    
+    await nftAuction.connect(accounts[4]).bid(auctionHashes[0], {
+      from: accounts[4].address,
+      value: 5001
+    });
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(250);
+   
+    await nftAuction.connect(accounts[5]).bid(auctionHashes[0], {
+      from: accounts[5].address,
+      value: 10001
+    });
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(500);
+  });
+});

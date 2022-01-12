@@ -21,12 +21,14 @@ struct Auction {
 struct BidInfo{
   address bidder;
   uint value;
+  uint256 created;
   bool hasWithdrawn;
 }
 
 contract NFTAuction is Ownable, ReentrancyGuard{
     event Start(bytes32 indexed auctionHash);
     event Bid(bytes32 indexed auctionHash, address indexed sender, uint amount);
+    event CreateAuction(bytes32 indexed auctionHash);
     event Withdraw(bytes32 indexed auctionHash, address indexed bidder, uint amount);
     event Accept(bytes32 indexed auctionHash, address winner, uint amount);
     event Cancel(bytes32 indexed auctionHash, address seller);
@@ -106,6 +108,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
                 revert("already started");
             }
         }
+        emit CreateAuction(auctionHash);
     }
 
     // get the seller of the auction
@@ -159,12 +162,14 @@ contract NFTAuction is Ownable, ReentrancyGuard{
             
             require(newBidAmount > auctions[_auctionHash].highestBid, "value < highest");
             bids[_auctionHash][bidIndex].value = newBidAmount;
+            bids[_auctionHash][bidIndex].created = block.timestamp;
          } else {
             require(msg.value > auctions[_auctionHash].highestBid, "value < highest");
 
             BidInfo memory newBid;
             newBid.value = msg.value;
             newBid.bidder = msg.sender;
+            newBid.created = block.timestamp;
 
             bids[_auctionHash].push(newBid);
         }
@@ -178,6 +183,20 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         }
 
         emit Bid(_auctionHash, msg.sender, msg.value);
+    }
+
+    function minimumBid(bytes32 _auctionHash) public view returns(uint) {
+        if (auctions[_auctionHash].highestBid <= 100) {
+            return 10;
+        } else if (auctions[_auctionHash].highestBid <= 1000) {
+            return 50;
+        } else if (auctions[_auctionHash].highestBid <= 5000) {
+            return 100;
+        } else if (auctions[_auctionHash].highestBid <= 10000) {
+            return 250;
+        } else {
+            return 500;
+        }
     }
 
     function withdraw(bytes32 _auctionHash) external nonReentrant {
