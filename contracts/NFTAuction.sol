@@ -182,7 +182,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
             emit TimeIncreased(_auctionHash, msg.sender, 10);    
         }
 
-        emit Bid(_auctionHash, msg.sender, msg.value);
+        emit Bid(_auctionHash, msg.sender, newBidAmount);
     }
 
     function minimumBid(bytes32 _auctionHash) public view returns(uint) {

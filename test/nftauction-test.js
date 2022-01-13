@@ -224,7 +224,12 @@ describe("Test NFTauction bid()", function () {
       from: accounts[1].address,
       value: 20
     })).to.emit(nftAuction, "Bid")
-    .withArgs(auctionHashes[0], accounts[1].address, 20);
+   
+    await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 10
+    })).to.emit(nftAuction, "Bid")
+    .withArgs(auctionHashes[0], accounts[1].address, 30);
   });
 
   it("Should update the existing Bid", async function () {
