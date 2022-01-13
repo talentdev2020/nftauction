@@ -226,18 +226,15 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function accept(bytes32 _auctionHash) external 
-        onlyAuctionOwner (_auctionHash)
-        onlyAuctionStarted(_auctionHash) 
     {
         require(!auctions[_auctionHash].ended, "ended");
 
-        auctions[_auctionHash].ended = true;
         if (auctions[_auctionHash].highestBidder != address(0)) {
+            auctions[_auctionHash].ended = true;
             ERC721(auctions[_auctionHash].nft).safeTransferFrom(auctions[_auctionHash].seller, auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
             auctions[_auctionHash].seller.transfer(auctions[_auctionHash].highestBid);
-        }
-
-        emit Accept(_auctionHash, auctions[_auctionHash].highestBidder, auctions[_auctionHash].highestBid);
+            emit Accept(_auctionHash, auctions[_auctionHash].highestBidder, auctions[_auctionHash].highestBid);
+        }        
     }
 
     function cancel(bytes32 _auctionHash) external 
