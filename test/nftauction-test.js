@@ -328,9 +328,14 @@ describe("Test NFTAuction accept()", function () {
   it("Should not accept after ended", async function () {
     await mockNFT.approve(nftAuction.address, 2);
     await nftAuction.startAll();
-
+   
+    await nftAuction.bid(auctionHashes[0], {
+      from: accounts[0].address,
+      value: 20
+    })
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
     await ethers.provider.send('evm_mine');
+    
     await nftAuction.accept(auctionHashes[0]);
 
     await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("ended");
@@ -383,9 +388,15 @@ describe("Test NFTAuction cancel()", function () {
   it("Should not accept after ended", async function () {
     await mockNFT.approve(nftAuction.address, 2);
     await nftAuction.startAll();
+    
+    await nftAuction.bid(auctionHashes[0], {
+      from: accounts[0].address,
+      value: 11
+    });
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
     await ethers.provider.send('evm_mine');
+    
     await nftAuction.accept(auctionHashes[0]);
 
     await expect( nftAuction.cancel(auctionHashes[0])).to.be.revertedWith("ended");
@@ -402,8 +413,24 @@ describe("Test NFTAuction cancel()", function () {
 
     await expect( nftAuction.accept(auctionHashes[0])).to.be.revertedWith("ended");
   });
-});
+  
+  it("Should relist after canceled", async function () {
+    await mockNFT.approve(nftAuction.address, 2);
+    await nftAuction.startAll();
 
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
+    await ethers.provider.send('evm_mine');
+    await nftAuction.cancel(auctionHashes[0]);
+
+    // relist the auctionHash[0]
+    await nftAuction.createAuction(mockNFT.address, 2, 100);
+    const auction = await nftAuction.getAuction(auctionHashes[0]);
+    expect(auction.started).to.be.equal(false);
+    expect(auction.ended).to.be.equal(false);
+    expect(auction.isValue).to.be.equal(true);
+    expect(auction.highestBid).to.be.equal(100);
+  });
+});
 
 describe("Test NFTauction withdraw()", function () {
   let nftAuction;

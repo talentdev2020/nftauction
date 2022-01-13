@@ -90,6 +90,12 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         auctions[_auctionHash].highestBid = _startingBid;
     }
 
+    function _relistAuction(bytes32 _auctionHash, uint _startingBid) internal {
+        auctions[_auctionHash].highestBid = _startingBid;
+        auctions[_auctionHash].ended = false;
+        auctions[_auctionHash].started = false;
+        auctions[_auctionHash].isValue = true;
+    }
     // create or update auction
     function createAuction(address _nft, uint _nftId, uint _startingBid) external {
         require(ERC721(_nft).ownerOf(_nftId) == msg.sender, "not owner of token");
@@ -97,7 +103,12 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         bytes32 auctionHash = keccak256(abi.encodePacked(msg.sender, _nft, _nftId));
         //Auction already exists, update if not active otherwise revert
         if (!auctions[auctionHash].isValue) {
-            _createAuction(auctionHash, _nft, _nftId, _startingBid, msg.sender);
+            // check if the auction is cancelled
+            if (auctions[auctionHash].ended) {
+                _relistAuction(auctionHash, _startingBid);
+            } else {
+                _createAuction(auctionHash, _nft, _nftId, _startingBid, msg.sender);
+            }
         } else {
             if (!auctions[auctionHash].started) {
                 _updateAuction(auctionHash, _startingBid);
@@ -226,6 +237,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function accept(bytes32 _auctionHash) external 
+        onlyAuctionStarted(_auctionHash) 
     {
         require(!auctions[_auctionHash].ended, "ended");
 
@@ -234,7 +246,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
             ERC721(auctions[_auctionHash].nft).safeTransferFrom(auctions[_auctionHash].seller, auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
             auctions[_auctionHash].seller.transfer(auctions[_auctionHash].highestBid);
             emit Accept(_auctionHash, auctions[_auctionHash].highestBidder, auctions[_auctionHash].highestBid);
-        }        
+        }
     }
 
     function cancel(bytes32 _auctionHash) external 
@@ -243,6 +255,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     {
         require(!auctions[_auctionHash].ended, "ended");
 
+        auctions[_auctionHash].isValue = false;
         auctions[_auctionHash].ended = true;
 
         emit Cancel(_auctionHash, msg.sender);
