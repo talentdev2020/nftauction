@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 struct Auction {
     address nft;
@@ -21,7 +21,7 @@ struct Auction {
 struct BidInfo{
   address bidder;
   uint value;
-  uint256 created;
+  uint created;
   bool hasWithdrawn;
 }
 
@@ -34,10 +34,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     event Cancel(bytes32 indexed auctionHash, address seller);
     event TimeIncreased(bytes32 indexed auctionHash, address sender, uint increasedMinutes);
 
-    // using Counters for Counters.Counter;
-
-    // Counters.Counter public auctionId;
-
+    using SafeMath for uint;
     //AuctionId to Auction Data
     mapping(bytes32 => Auction) public auctions;
     // mapping(bytes32 => mapping(address => uint)) bids;
@@ -160,11 +157,11 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         if (type(uint256).max != bidIndex) {
             newBidAmount = bids[_auctionHash][bidIndex].value + msg.value;
             
-            require(newBidAmount > auctions[_auctionHash].highestBid, "value < highest");
+            require(newBidAmount >= minimumBid(_auctionHash), "not miniumbid");
             bids[_auctionHash][bidIndex].value = newBidAmount;
             bids[_auctionHash][bidIndex].created = block.timestamp;
          } else {
-            require(msg.value > auctions[_auctionHash].highestBid, "value < highest");
+            require(msg.value >= minimumBid(_auctionHash), "not miniumbid");
 
             BidInfo memory newBid;
             newBid.value = msg.value;
@@ -186,17 +183,28 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function minimumBid(bytes32 _auctionHash) public view returns(uint) {
-        if (auctions[_auctionHash].highestBid <= 100) {
-            return 10;
-        } else if (auctions[_auctionHash].highestBid <= 1000) {
-            return 50;
-        } else if (auctions[_auctionHash].highestBid <= 5000) {
-            return 100;
-        } else if (auctions[_auctionHash].highestBid <= 10000) {
-            return 250;
-        } else {
-            return 500;
+        uint highestBid = auctions[_auctionHash].highestBid;
+        
+        // if this is the first bid, it will return the starting bid
+        if (bids[_auctionHash].length == 0) {
+            return highestBid;
         }
+
+        uint increaseBid;
+
+        if (highestBid <= 100) {
+            increaseBid = 10;
+        } else if (highestBid <= 1000) {
+            increaseBid = 50;
+        } else if (highestBid <= 5000) {
+            increaseBid = 100;
+        } else if (highestBid <= 10000) {
+            increaseBid = 250;
+        } else {
+            increaseBid = 500;
+        }
+
+        return highestBid.add(increaseBid);
     }
 
     function withdraw(bytes32 _auctionHash) external nonReentrant {

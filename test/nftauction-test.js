@@ -170,17 +170,35 @@ describe("Test NFTauction bid()", function () {
     })).to.be.revertedWith("ended");
   });
   
-  it("Should not bid with samller amount than current highest bid ", async function () {
+  it("Should not bid with samller amount than minium bid ", async function () {
     await nftAuction.start(auctionHashes[0]);
 
+    
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 15
     })
+    // when current highest bid is 15;
     await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 15
-    })).to.be.revertedWith("value < highest");
+      value: 24
+    })).to.be.revertedWith("not miniumbid");
+
+    // bid with 25
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 25
+    })
+
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 101
+    })
+    // when current highest bid is 101;
+    await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 150
+    })).to.be.revertedWith("not miniumbid");
   });
   
   it("Should increase end time with 10 mins", async function () {
@@ -242,20 +260,20 @@ describe("Test NFTauction bid()", function () {
 
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 25
+      value: 35
     });
     
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 10
+      value: 25
     });
 
     const auction = await nftAuction.getAuction(auctionHashes[0]);
 
-    expect(auction.highestBid).to.be.equal("30")
+    expect(auction.highestBid).to.be.equal("45")
   });
   
-  it("Should not update when adding balance is not greater than highest bid", async function () {
+  it("Should not update when adding balance is not greater than minium bid", async function () {
     await nftAuction.start(auctionHashes[0]);
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
@@ -265,13 +283,13 @@ describe("Test NFTauction bid()", function () {
 
     await expect(nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 25
+      value: 35
     }));
     
     await (expect(nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 5
-    }))).to.be.revertedWith("value < highest");;
+      value: 24
+    }))).to.be.revertedWith("not miniumbid");;
   });
  
   it("Should emit Bid event for muliple acutions", async function () {
@@ -409,11 +427,11 @@ describe("Test NFTauction withdraw()", function () {
     });
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 12
+      value: 21
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 13
+      value: 31
     });
 
     await nftAuction.accept(auctionHashes[0]);
@@ -422,7 +440,7 @@ describe("Test NFTauction withdraw()", function () {
     await expect( nftAuction.connect(accounts[3]).withdraw(auctionHashes[0])).to.be.revertedWith("no bidder exist");
 
     await expect(() => nftAuction.withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[0], 11);
-    await expect(() => nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[1], 12);
+    await expect(() => nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[1], 21);
   });
 
   it("Should not withdraw for the highest bidder", async function () {
@@ -435,7 +453,7 @@ describe("Test NFTauction withdraw()", function () {
     });
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
       from: accounts[1].address,
-      value: 12
+      value: 21
     });
 
    await nftAuction.accept(auctionHashes[0]);
@@ -454,7 +472,7 @@ describe("Test NFTauction withdraw()", function () {
     });
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
       from: accounts[1].address,
-      value: 12
+      value: 21
     });
 
    await nftAuction.accept(auctionHashes[0]);
@@ -485,11 +503,11 @@ describe("Test NFTauction getAllBids()", function () {
     });
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 12
+      value: 21
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 13
+      value: 31
     });
    
     const auctions = await nftAuction.getAllBids(auctionHashes[0]);
@@ -520,36 +538,42 @@ describe("Test NFTauction minimumBid()", function () {
       from: accounts[0].address,
       value: 11
     });
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(10);
+    // when current highest bid is 11
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(21);
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
       value: 101
     });
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(50);
+    // when current highest bid is 101
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(151);
 
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
       value: 1001
     });
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(100);
+    // when current highest bid is 1001
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(1101);
 
     await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
       from: accounts[3].address,
       value: 5000
     });
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(100);
+    // when current highest bid is 5000
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(5100);
     
     await nftAuction.connect(accounts[4]).bid(auctionHashes[0], {
       from: accounts[4].address,
-      value: 5001
+      value: 5100
     });
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(250);
+    // when current highest bid is 5100
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(5350);
    
     await nftAuction.connect(accounts[5]).bid(auctionHashes[0], {
       from: accounts[5].address,
       value: 10001
     });
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(500);
+    // when current highest bid is 10001
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(10501);
   });
 });
