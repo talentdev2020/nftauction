@@ -91,10 +91,12 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function _relistAuction(bytes32 _auctionHash, uint _startingBid) internal {
-        auctions[_auctionHash].highestBid = _startingBid;
-        auctions[_auctionHash].ended = false;
-        auctions[_auctionHash].started = false;
-        auctions[_auctionHash].isValue = true;
+        Auction memory auction = auctions[_auctionHash];
+        auction.highestBid = _startingBid;
+        auction.ended = false;
+        auction.started = false;
+        auction.isValue = true;
+        auctions[_auctionHash] = auction;
     }
     // create or update auction
     function createAuction(address _nft, uint _nftId, uint _startingBid) external {
