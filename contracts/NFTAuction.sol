@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -98,7 +98,8 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
     // create or update auction
     function createAuction(address _nft, uint _nftId, uint _startingBid) external {
-        require(ERC721(_nft).ownerOf(_nftId) == msg.sender, "not owner of token");
+        require(IERC721(_nft).ownerOf(_nftId) == msg.sender, "not owner of token");
+        require(isApproved(_nft, msg.sender), "seller revoked approval");
         
         bytes32 auctionHash = keccak256(abi.encodePacked(msg.sender, _nft, _nftId));
         //Auction already exists, update if not active otherwise revert
@@ -218,8 +219,16 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         return highestBid.add(increaseBid);
     }
 
+    function isApproved(address _nft, address _seller) public view returns(bool) {
+        if (IERC721(_nft).isApprovedForAll(_seller, address(this))) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     function withdraw(bytes32 _auctionHash) external nonReentrant {
-        if (auctions[_auctionHash].isValue) {
+        if (auctions[_auctionHash].isValue && isApproved(auctions[_auctionHash].nft, auctions[_auctionHash].seller)) {
             require(auctions[_auctionHash].highestBidder != msg.sender, "not available for highest bidder");
         }
         
@@ -245,7 +254,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
 
         if (auctions[_auctionHash].highestBidder != address(0)) {
             auctions[_auctionHash].ended = true;
-            ERC721(auctions[_auctionHash].nft).safeTransferFrom(auctions[_auctionHash].seller, auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
+            IERC721(auctions[_auctionHash].nft).safeTransferFrom(auctions[_auctionHash].seller, auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
             auctions[_auctionHash].seller.transfer(auctions[_auctionHash].highestBid);
             emit Accept(_auctionHash, auctions[_auctionHash].highestBidder, auctions[_auctionHash].highestBid);
         }
