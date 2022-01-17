@@ -2,16 +2,19 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 async function init() {
-  accounts = await ethers.getSigners();
+    accounts = await ethers.getSigners();
 
-  const MockNFT = await ethers.getContractFactory("MockNFT");
-  mockNFT = await MockNFT.deploy();
-  await mockNFT.deployed();
+    const MockNFT = await ethers.getContractFactory("MockNFT");
+    mockNFT = await MockNFT.deploy();
+    await mockNFT.deployed();
 
-  const NFTAuction = await ethers.getContractFactory("NFTAuction");
-  nftAuction = await NFTAuction.deploy();
-  await nftAuction.deployed();
-
+    const NFTAuction = await ethers.getContractFactory("NFTAuction");
+    nftAuction = await NFTAuction.deploy();
+    await nftAuction.deployed();
+    await mockNFT.setApprovalForAll(nftAuction.address, true);
+    await mockNFT.connect(accounts[1]).setApprovalForAll(nftAuction.address, true);
+    await mockNFT.connect(accounts[2]).setApprovalForAll(nftAuction.address, true);
+    
     // token Id '2' auction with '10' starting amount for owner
     await nftAuction.createAuction(mockNFT.address, 2, 10);
 
@@ -70,6 +73,11 @@ describe("Test NFTauction createAuction()", function () {
 
   it("Should not create for the not owner of token", async function () {
     await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 5, 10)).to.be.revertedWith("not owner of token");
+  });
+ 
+  it("Should not create when revoke the permission", async function () {
+    await mockNFT.connect(accounts[1]).setApprovalForAll(nftAuction.address, false);
+    await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, 10)).to.be.revertedWith("seller revoked approval");
   });
 })
 
@@ -524,6 +532,26 @@ describe("Test NFTauction withdraw()", function () {
    // for highest bidder
    expect( await nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[1], 21);
   });
+  
+  it("Should allow withdraw for the highest bidder after revoke the permission", async function () {
+    await nftAuction.startAll();
+
+    await nftAuction.bid(auctionHashes[0],{
+      from: accounts[0].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
+      from: accounts[1].address,
+      value: 21
+    });
+
+   await mockNFT.setApprovalForAll(nftAuction.address, false);
+
+   // for highest bidder
+   expect( await nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[1], 21);
+  });
+
+
 });
 
 describe("Test NFTauction getAllBids()", function () {
