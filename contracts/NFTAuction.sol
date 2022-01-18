@@ -10,18 +10,18 @@ struct Auction {
     address nft;
     address payable seller;
     address highestBidder;
-    uint nftId;
-    uint highestBid;
-    uint endAt;
     bool started;
     bool ended;
     bool isValue;
+    uint nftId;
+    uint highestBid;
+    uint endAt;
     uint hashId;
 }
 struct BidInfo{
-  address bidder;
   uint value;
   uint created;
+  address bidder;
   bool hasWithdrawn;
 }
 
@@ -37,12 +37,9 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     using SafeMath for uint;
     //AuctionId to Auction Data
     mapping(bytes32 => Auction) public auctions;
-    // mapping(bytes32 => mapping(address => uint)) bids;
     mapping(bytes32 => BidInfo[]) bids;
     bytes32[] public auctionHashes;
     uint runTime = 3 days;
-    // //Hash to AuctionId
-    // mapping(bytes32 => uint) public auctionHashes;
 
     modifier onlyAuctionOwner(bytes32 _auctionHash) {
         require(auctions[_auctionHash].seller == msg.sender, "not seller");
@@ -163,8 +160,10 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function bid(bytes32 _auctionHash) external payable onlyAuctionStarted(_auctionHash) {
-        require(!auctions[_auctionHash].ended, "auction ended");
-        require(block.timestamp < auctions[_auctionHash].endAt, "ended");
+        Auction memory auction = auctions[_auctionHash];
+        require(auction.seller != msg.sender, "not available for token seller");
+        require(!auction.ended, "auction ended");
+        require(block.timestamp < auction.endAt, "ended");
 
         uint bidIndex = getBidIndex(_auctionHash, msg.sender);
         uint newBidAmount = msg.value;
@@ -185,14 +184,14 @@ contract NFTAuction is Ownable, ReentrancyGuard{
             bids[_auctionHash].push(newBid);
         }
 
-        auctions[_auctionHash].highestBidder = msg.sender;
-        auctions[_auctionHash].highestBid = newBidAmount;
+        auction.highestBidder = msg.sender;
+        auction.highestBid = newBidAmount;
 
-        if (block.timestamp > auctions[_auctionHash].endAt - 10 minutes) {
-            auctions[_auctionHash].endAt += 10 minutes;
+        if (block.timestamp > auction.endAt - 10 minutes) {
+            auction.endAt += 10 minutes;
             emit TimeIncreased(_auctionHash, msg.sender, 10);    
         }
-
+        auctions[_auctionHash] = auction;
         emit Bid(_auctionHash, msg.sender, newBidAmount);
     }
 
@@ -230,8 +229,9 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
 
     function withdraw(bytes32 _auctionHash) external nonReentrant {
-        if (auctions[_auctionHash].isValue && isApproved(auctions[_auctionHash].nft, auctions[_auctionHash].seller)) {
-            require(auctions[_auctionHash].highestBidder != msg.sender, "not available for highest bidder");
+        Auction memory auction = auctions[_auctionHash];
+        if (auction.isValue && isApproved(auction.nft, auction.seller)) {
+            require(auction.highestBidder != msg.sender, "not available for highest bidder");
         }
         
         uint bidIndex = getBidIndex(_auctionHash, msg.sender);
@@ -252,13 +252,15 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     function accept(bytes32 _auctionHash) external 
         onlyAuctionStarted(_auctionHash) 
     {
-        require(!auctions[_auctionHash].ended, "ended");
+        Auction memory auction = auctions[_auctionHash];
+        require(!auction.ended, "ended");
 
-        if (auctions[_auctionHash].highestBidder != address(0)) {
+        if (auction.highestBidder != address(0)) {
             auctions[_auctionHash].ended = true;
-            IERC721(auctions[_auctionHash].nft).safeTransferFrom(auctions[_auctionHash].seller, auctions[_auctionHash].highestBidder, auctions[_auctionHash].nftId);
-            auctions[_auctionHash].seller.transfer(auctions[_auctionHash].highestBid);
-            emit Accept(_auctionHash, auctions[_auctionHash].highestBidder, auctions[_auctionHash].highestBid);
+            IERC721(auction.nft).safeTransferFrom(auction.seller, auction.highestBidder, auction.nftId);
+            auction.seller.transfer(auction.highestBid);
+
+            emit Accept(_auctionHash, auction.highestBidder, auction.highestBid);
         }
     }
 
@@ -266,10 +268,12 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         onlyAuctionOwner(_auctionHash)
         onlyAuctionStarted(_auctionHash)
     {
-        require(!auctions[_auctionHash].ended, "ended");
+        Auction memory auction = auctions[_auctionHash];
+        require(!auction.ended, "ended");
 
-        auctions[_auctionHash].isValue = false;
-        auctions[_auctionHash].ended = true;
+        auction.isValue = false;
+        auction.ended = true;
+        auctions[_auctionHash] = auction;
 
         emit Cancel(_auctionHash, msg.sender);
     }
