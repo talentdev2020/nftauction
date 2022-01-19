@@ -6,20 +6,19 @@
 const hre = require("hardhat");
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
-
   // We get the contract to deploy
   const NFTAuction = await hre.ethers.getContractFactory("NFTAuction");
-  const nFTAuction = await NFTAuction.deploy("$nftAddress", "$tokenID", "$startingBid");
+  const nFTAuction = await NFTAuction.deploy();
 
   await nFTAuction.deployed();
 
   console.log("NFTAuction deployed to:", nFTAuction.address);
+  //testnet: 0xf6f6677dCBB4219ABddDEa41b71b309f5a4Bc54C
+  //  // transfer ownership
+  //  const tx = await nFTAuction.transferOwnership(owner);
+  //  await tx.wait();
+  //  const newOwner = await nFTAuction.owner();
+  //  console.log(`owner is now: ${newOwner}`)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

@@ -15,7 +15,8 @@
   "license": "ISC",
   "homepage": "https://bitbucket.org/ebisusbay/eb_charity_auction#readme",
   "devDependencies": {
-    "hardhat": "^2.8.0"
+    "hardhat": "^2.8.0",
+    "hardhat-abi-exporter": "^2.7.2"
   },
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.3",
