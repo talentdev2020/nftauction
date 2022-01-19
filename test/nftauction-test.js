@@ -57,6 +57,7 @@ describe("Test NFTauction createAuction()", function () {
     expect( seller2 ).to.equal(accounts[0].address);
   });
 
+
   it("Should update the auction when already created: startingBid 10 -> 11", async function () {
     await nftAuction.createAuction(mockNFT.address, 2, 11);
     hash = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
