@@ -245,7 +245,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         emit Withdraw(_auctionHash, msg.sender, balance);
     }
 
-    function getAllBids(bytes32 _auctionHash) external view returns(BidInfo[] memory) {
+    function getAllBids(bytes32 _auctionHash) external view onlyOwner returns(BidInfo[] memory) {
         return bids[_auctionHash];
     }
 
