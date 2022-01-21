@@ -13,7 +13,7 @@ async function main() {
   await nFTAuction.deployed();
 
   console.log("NFTAuction deployed to:", nFTAuction.address);
-  //testnet: 0xf53960bA4c325Dc6D7d3afF569C09621049efa37
+  //testnet: 0x64ac624E4A719d792a53E5A865BF107937e1fa3d
   //  // transfer ownership
   //  const tx = await nFTAuction.transferOwnership(owner);
   //  await tx.wait();

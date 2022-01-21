@@ -654,6 +654,43 @@ describe("Test NFTauction returnBidsToWallets()", function () {
     expect(account4InitialBalance.toString()).to.be.equal(account4AfterBalance.toString());
   });
 
+  it("Should not returns bids multiple times", async function () {
+    await nftAuction.startAll();
+    
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 21
+    });
+    await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
+      from: accounts[3].address,
+      value: 31
+    });
+    
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 31
+    });
+
+    await nftAuction.returnBidsToWallets(auctionHashes[0]);
+    const account1InitialBalance = await waffle.provider.getBalance(accounts[1].address);
+    const account2InitialBalance = await waffle.provider.getBalance(accounts[2].address); // highest bidder
+    const account3InitialBalance = await waffle.provider.getBalance(accounts[3].address);
+    // returns bids multiple times
+    await nftAuction.returnBidsToWallets(auctionHashes[0]);
+
+    const account1AfterBalance = await waffle.provider.getBalance(accounts[1].address);
+    const account2AfterBalance = await waffle.provider.getBalance(accounts[2].address);
+    const account3AfterBalance = await waffle.provider.getBalance(accounts[3].address);
+ 
+    expect(account1InitialBalance.toString()).to.be.equal(account1AfterBalance.toString());
+    expect(account2InitialBalance.toString()).to.be.equal(account2AfterBalance.toString());
+    expect(account3InitialBalance.toString()).to.be.equal(account3AfterBalance.toString());
+  });
+
   it("Should not call for not owner", async function () {
     await nftAuction.startAll();
 
