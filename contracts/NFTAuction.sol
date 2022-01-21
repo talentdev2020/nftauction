@@ -39,7 +39,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     mapping(bytes32 => Auction) public auctions;
     mapping(bytes32 => BidInfo[]) bids;
     bytes32[] public auctionHashes;
-    uint runTime = 3 days;
+    uint runTime = 5 days;
 
     modifier onlyAuctionOwner(bytes32 _auctionHash) {
         require(auctions[_auctionHash].seller == msg.sender, "not seller");
