@@ -39,7 +39,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     mapping(bytes32 => Auction) public auctions;
     mapping(bytes32 => BidInfo[]) bids;
     bytes32[] public auctionHashes;
-    uint runTime = 3 days;
+    uint runTime = 5 days;
 
     modifier onlyAuctionOwner(bytes32 _auctionHash) {
         require(auctions[_auctionHash].seller == msg.sender, "not seller");
@@ -205,16 +205,16 @@ contract NFTAuction is Ownable, ReentrancyGuard{
 
         uint increaseBid;
 
-        if (highestBid <= 100) {
-            increaseBid = 10;
-        } else if (highestBid <= 1000) {
-            increaseBid = 50;
-        } else if (highestBid <= 5000) {
-            increaseBid = 100;
-        } else if (highestBid <= 10000) {
-            increaseBid = 250;
+        if (highestBid <= 100 ether) {
+            increaseBid = 10 ether;
+        } else if (highestBid <= 1000 ether) {
+            increaseBid = 50 ether;
+        } else if (highestBid <= 5000 ether) {
+            increaseBid = 100 ether ;
+        } else if (highestBid <= 10000 ether) {
+            increaseBid = 250 ether;
         } else {
-            increaseBid = 500;
+            increaseBid = 500 ether;
         }
 
         return highestBid.add(increaseBid);
