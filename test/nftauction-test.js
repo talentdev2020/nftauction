@@ -652,6 +652,9 @@ describe("Test NFTauction returnBidsToWallets()", function () {
     expect(parseFloat(account3InitialBalance.toString()) + 31).to.be.equal(parseFloat(account3AfterBalance.toString()));
     expect(account2InitialBalance.toString()).to.be.equal(account2AfterBalance.toString());
     expect(account4InitialBalance.toString()).to.be.equal(account4AfterBalance.toString());
+
+    await expect( nftAuction.connect(accounts[4]).withdraw(auctionHashes[0])).to.be.revertedWith("no bidder exist");
+    
   });
 
   it("Should not call for not owner", async function () {
