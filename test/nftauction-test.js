@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers, waffle } = require("hardhat");
+const parseEther = ethers.utils.parseEther;
 
 async function init() {
     accounts = await ethers.getSigners();
@@ -16,16 +17,16 @@ async function init() {
     await mockNFT.connect(accounts[2]).setApprovalForAll(nftAuction.address, true);
     
     // token Id '2' auction with '10' starting amount for owner
-    await nftAuction.createAuction(mockNFT.address, 2, 10);
+    await nftAuction.createAuction(mockNFT.address, 2, parseEther("10"));
 
     // token Id '3' auction with '10' starting amount for owner
-    await nftAuction.createAuction(mockNFT.address, 3, 10);
+    await nftAuction.createAuction(mockNFT.address, 3, parseEther("10"));
 
     // send token 4 from owner to account1
     await mockNFT.approve(accounts[1].address, 4);
     await mockNFT.transferFrom(accounts[0].address, accounts[1].address, 4);
     // token Id '4' auction with '10' starting amount for account1
-    await nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, 10);
+    await nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, parseEther("10"));
     const auctionHashes=  [];
     auctionHashes[0] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
     auctionHashes[1] = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 3]);
@@ -58,26 +59,26 @@ describe("Test NFTauction createAuction()", function () {
   });
 
   it("Should update the auction when already created: startingBid 10 -> 11", async function () {
-    await nftAuction.createAuction(mockNFT.address, 2, 11);
+    await nftAuction.createAuction(mockNFT.address, 2, parseEther("11"));
     hash = ethers.utils.solidityKeccak256(["address", "address", "uint"], [accounts[0].address, mockNFT.address, 2]);
     const auction = await nftAuction.getAuction(hash);
 
-    await expect( auction.highestBid).to.be.equal("11");
+    await expect( auction.highestBid).to.be.equal(parseEther("11"));
   });
   
   it("Should not create/update after started the auction", async function () {
     await nftAuction.startAll();
 
-    await expect( nftAuction.createAuction(mockNFT.address, 2, 10)).to.be.revertedWith("already started");
+    await expect( nftAuction.createAuction(mockNFT.address, 2, parseEther("10"))).to.be.revertedWith("already started");
   });
 
   it("Should not create for the not owner of token", async function () {
-    await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 5, 10)).to.be.revertedWith("not owner of token");
+    await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 5, parseEther("10"))).to.be.revertedWith("not owner of token");
   });
  
   it("Should not create when revoke the permission", async function () {
     await mockNFT.connect(accounts[1]).setApprovalForAll(nftAuction.address, false);
-    await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, 10)).to.be.revertedWith("seller revoked approval");
+    await expect( nftAuction.connect(accounts[1]).createAuction(mockNFT.address, 4, parseEther("10"))).to.be.revertedWith("seller revoked approval");
   });
 })
 
@@ -181,7 +182,7 @@ describe("Test NFTauction bid()", function () {
 
     await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 15
+      value: parseEther("15")
     })).to.be.revertedWith("ended");
   });
   
@@ -190,28 +191,28 @@ describe("Test NFTauction bid()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 15
+      value: parseEther("15")
     })
     // when current highest bid is 15;
     await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 24
+      value: parseEther("24")
     })).to.be.revertedWith("not miniumbid");
 
     // bid with 25
     await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
       from: accounts[3].address,
-      value: 25
+      value: parseEther("25")
     })
 
     await nftAuction.connect(accounts[4]).bid(auctionHashes[0], {
       from: accounts[4].address,
-      value: 101
+      value: parseEther("101")
     })
     // when current highest bid is 101;
     await expect( nftAuction.connect(accounts[5]).bid(auctionHashes[0], {
       from: accounts[5].address,
-      value: 150
+      value: parseEther("150")
     })).to.be.revertedWith("not miniumbid");
   });
   
@@ -223,7 +224,7 @@ describe("Test NFTauction bid()", function () {
 
     await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })).to.emit(nftAuction, "TimeIncreased")
     .withArgs(auctionHashes[0], accounts[1].address, 10);
   });
@@ -236,13 +237,13 @@ describe("Test NFTauction bid()", function () {
 
     await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })).to.emit(nftAuction, "TimeIncreased")
     .withArgs(auctionHashes[0], accounts[1].address, 10);
 
     await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[2], {
       from: accounts[2].address,
-      value: 20
+      value: parseEther("20")
     })).to.emit(nftAuction, "TimeIncreased")
     .withArgs(auctionHashes[2], accounts[2].address, 10);
   });
@@ -252,14 +253,14 @@ describe("Test NFTauction bid()", function () {
 
     await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })).to.emit(nftAuction, "Bid")
    
     await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 10
+      value: parseEther("10")
     })).to.emit(nftAuction, "Bid")
-    .withArgs(auctionHashes[0], accounts[1].address, 30);
+    .withArgs(auctionHashes[0], accounts[1].address, parseEther("30"));
   });
 
   it("Should update the existing Bid", async function () {
@@ -267,22 +268,22 @@ describe("Test NFTauction bid()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })
 
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 35
+      value: parseEther("35")
     });
     
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 25
+      value: parseEther("25")
     });
 
     const auction = await nftAuction.getAuction(auctionHashes[0]);
 
-    expect(auction.highestBid).to.be.equal("45")
+    expect(auction.highestBid).to.be.equal(parseEther("45"))
   });
   
   it("Should not update when adding balance is not greater than minium bid", async function () {
@@ -290,17 +291,17 @@ describe("Test NFTauction bid()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })
 
     await expect(nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 35
+      value: parseEther("35")
     }));
     
     await (expect(nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 24
+      value: parseEther("24")
     }))).to.be.revertedWith("not miniumbid");;
   });
  
@@ -309,15 +310,15 @@ describe("Test NFTauction bid()", function () {
 
     await expect( nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })).to.emit(nftAuction, "Bid")
-    .withArgs(auctionHashes[0], accounts[1].address, 20);
+    .withArgs(auctionHashes[0], accounts[1].address, parseEther("20"));
    
     await expect( nftAuction.connect(accounts[2]).bid(auctionHashes[2], {
       from: accounts[2].address,
-      value: 30
+      value: parseEther("30")
     })).to.emit(nftAuction, "Bid")
-    .withArgs(auctionHashes[2], accounts[2].address, 30);
+    .withArgs(auctionHashes[2], accounts[2].address, parseEther("30"));
   });
 });
 
@@ -343,7 +344,7 @@ describe("Test NFTAuction accept()", function () {
    
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
     await ethers.provider.send('evm_mine');
@@ -360,18 +361,18 @@ describe("Test NFTAuction accept()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 20
+      value: parseEther("20")
     })
     await nftAuction.connect(accounts[2]).bid(auctionHashes[1], {
       from: accounts[2].address,
-      value: 30
+      value: parseEther("30")
     })
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
     await ethers.provider.send('evm_mine');
 
-    await expect(() => nftAuction.accept(auctionHashes[0])).to.changeEtherBalance(accounts[0], 20);
-    await expect(() => nftAuction.accept(auctionHashes[1])).to.changeEtherBalance(accounts[0], 30);
+    await expect(() => nftAuction.accept(auctionHashes[0])).to.changeEtherBalance(accounts[0], parseEther("20"));
+    await expect(() => nftAuction.accept(auctionHashes[1])).to.changeEtherBalance(accounts[0], parseEther("30"));
     
     // account1 has token 4 initially and got token2
     const balance1 = await mockNFT.balanceOf(accounts[1].address);
@@ -403,7 +404,7 @@ describe("Test NFTAuction cancel()", function () {
     
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
 
     await ethers.provider.send('evm_increaseTime', [60 * 60 * 24 * 7 + 1]);
@@ -435,12 +436,12 @@ describe("Test NFTAuction cancel()", function () {
     await nftAuction.cancel(auctionHashes[0]);
 
     // relist the auctionHash[0]
-    await nftAuction.createAuction(mockNFT.address, 2, 100);
+    await nftAuction.createAuction(mockNFT.address, 2, parseEther("100"));
     const auction = await nftAuction.getAuction(auctionHashes[0]);
     expect(auction.started).to.be.equal(false);
     expect(auction.ended).to.be.equal(false);
     expect(auction.isValue).to.be.equal(true);
-    expect(auction.highestBid).to.be.equal(100);
+    expect(auction.highestBid).to.be.equal(parseEther("100"));
   });
 });
 
@@ -462,15 +463,15 @@ describe("Test NFTauction withdraw()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
     await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
       from: accounts[3].address,
-      value: 31
+      value: parseEther("31")
     });
 
     await nftAuction.accept(auctionHashes[0]);
@@ -478,8 +479,8 @@ describe("Test NFTauction withdraw()", function () {
     // for not existing bidder
     await expect( nftAuction.connect(accounts[4]).withdraw(auctionHashes[0])).to.be.revertedWith("no bidder exist");
 
-    await expect(() => nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[1], 11);
-    await expect(() => nftAuction.connect(accounts[2]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[2], 21);
+    await expect(() => nftAuction.connect(accounts[1]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[1], parseEther("11"));
+    await expect(() => nftAuction.connect(accounts[2]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[2], parseEther("21"));
   });
 
   it("Should not withdraw for the highest bidder", async function () {
@@ -488,11 +489,11 @@ describe("Test NFTauction withdraw()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0],{
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
 
    await nftAuction.accept(auctionHashes[0]);
@@ -507,11 +508,11 @@ describe("Test NFTauction withdraw()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0],{
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
 
    await nftAuction.accept(auctionHashes[0]);
@@ -526,17 +527,17 @@ describe("Test NFTauction withdraw()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0],{
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
 
    await nftAuction.cancel(auctionHashes[0]);
 
    // for highest bidder
-   expect( await nftAuction.connect(accounts[2]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[2], 21);
+   expect( await nftAuction.connect(accounts[2]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[2], parseEther("21"));
   });
   
   it("Should allow withdraw for the highest bidder after revoke the permission", async function () {
@@ -544,17 +545,17 @@ describe("Test NFTauction withdraw()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0],{
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0],{
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
 
    await mockNFT.setApprovalForAll(nftAuction.address, false);
 
    // for highest bidder
-   expect( await nftAuction.connect(accounts[2]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[2], 21);
+   expect( await nftAuction.connect(accounts[2]).withdraw(auctionHashes[0])).to.be.changeEtherBalance(accounts[2], parseEther("21"));
   });
 
 
@@ -576,15 +577,15 @@ describe("Test NFTauction getAllBids()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
     await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
       from: accounts[3].address,
-      value: 31
+      value: parseEther("31")
     });
    
     const bids = await nftAuction.getAllBids(auctionHashes[0]);
@@ -613,25 +614,25 @@ describe("Test NFTauction returnBidsToWallets()", function () {
     
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
     await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
       from: accounts[3].address,
-      value: 31
+      value: parseEther("31")
     });
     
     await nftAuction.connect(accounts[4]).bid(auctionHashes[0], {
       from: accounts[4].address,
-      value: 42
+      value: parseEther("42")
     });
 
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 31
+      value: parseEther("31")
     });
 
     const account1InitialBalance = await waffle.provider.getBalance(accounts[1].address);
@@ -647,9 +648,8 @@ describe("Test NFTauction returnBidsToWallets()", function () {
     const account2AfterBalance = await waffle.provider.getBalance(accounts[2].address);
     const account3AfterBalance = await waffle.provider.getBalance(accounts[3].address);
     const account4AfterBalance = await waffle.provider.getBalance(accounts[4].address);
-
-    expect(parseFloat(account1InitialBalance.toString()) + 11).to.be.equal(parseFloat(account1AfterBalance.toString()));
-    expect(parseFloat(account3InitialBalance.toString()) + 31).to.be.equal(parseFloat(account3AfterBalance.toString()));
+    expect(account1InitialBalance.add(parseEther("11"))).to.be.equal(account1AfterBalance);
+    expect(account3InitialBalance.add(parseEther("31"))).to.be.equal(account3AfterBalance);
     expect(account2InitialBalance.toString()).to.be.equal(account2AfterBalance.toString());
     expect(account4InitialBalance.toString()).to.be.equal(account4AfterBalance.toString());
 
@@ -662,20 +662,20 @@ describe("Test NFTauction returnBidsToWallets()", function () {
     
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
     await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
       from: accounts[3].address,
-      value: 31
+      value: parseEther("31")
     });
     
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 31
+      value: parseEther("31")
     });
 
     await nftAuction.returnBidsToWallets(auctionHashes[0]);
@@ -699,11 +699,11 @@ describe("Test NFTauction returnBidsToWallets()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 21
+      value: parseEther("21")
     });
    
     await expect(nftAuction.connect(accounts[1]).returnBidsToWallets(auctionHashes[0])).to.be.revertedWith("Ownable: caller is not the owner");
@@ -726,45 +726,50 @@ describe("Test NFTauction minimumBid()", function () {
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
       from: accounts[1].address,
-      value: 11
+      value: parseEther("11")
     });
     // when current highest bid is 11
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(21);
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(parseEther("21"));
 
     await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
       from: accounts[2].address,
-      value: 101
+      value: parseEther("101")
     });
     
     // when current highest bid is 101
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(151);
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(parseEther("151"));
 
     await nftAuction.connect(accounts[3]).bid(auctionHashes[0], {
       from: accounts[3].address,
-      value: 1001
+      value: parseEther("1001")
     });
     // when current highest bid is 1001
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(1101);
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(parseEther("1101"));
 
     await nftAuction.connect(accounts[4]).bid(auctionHashes[0], {
       from: accounts[4].address,
-      value: 5000
+      value: parseEther("5000")
     });
     // when current highest bid is 5000
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(5100);
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(parseEther("5100"));
     
     await nftAuction.connect(accounts[5]).bid(auctionHashes[0], {
       from: accounts[5].address,
-      value: 5100
+      value: parseEther("5100")
     });
     // when current highest bid is 5100
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(5350);
-   
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(parseEther("5350"));
+    
+    //transfer 5000 ETH to accounts[6]
+    await accounts[7].sendTransaction({
+      to: accounts[6].address,
+      value: parseEther("5000")
+    })
     await nftAuction.connect(accounts[6]).bid(auctionHashes[0], {
       from: accounts[6].address,
-      value: 10001
+      value: parseEther("10001")
     });
     // when current highest bid is 10001
-    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(10501);
+    expect(await nftAuction.minimumBid(auctionHashes[0])).to.be.equal(parseEther("10501"));
   });
 });
