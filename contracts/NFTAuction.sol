@@ -259,6 +259,7 @@ contract NFTAuction is Ownable, ReentrancyGuard{
             ) {
                 bids[_auctionHash][i].hasWithdrawn = true;
                 (bool sent, ) = bids[_auctionHash][i].bidder.call{value: bids[_auctionHash][i].value}("");
+                bids[_auctionHash][i].hasWithdrawn = true;
                 require(sent, "transfer failed");
             }
         }
