@@ -245,8 +245,31 @@ contract NFTAuction is Ownable, ReentrancyGuard{
         emit Withdraw(_auctionHash, msg.sender, balance);
     }
 
-    function getAllBids(bytes32 _auctionHash) external view onlyOwner returns(BidInfo[] memory) {
+    function getAllBids(bytes32 _auctionHash) external view returns(BidInfo[] memory) {
         return bids[_auctionHash];
+    }
+    
+    // return all bids that are not high bids and not already withdrawn
+    function returnAllBids(bytes32 _auctionHash) external onlyOwner view returns(BidInfo[] memory) {
+        uint len = bids[_auctionHash].length;
+        address highestBidder = auctions[_auctionHash].highestBidder;
+        uint unavailableLength; // length of not available withdrawn bids
+        for (uint i = 0; i < len; i ++) {
+            if (bids[_auctionHash][i].hasWithdrawn || ( bids[_auctionHash][i].bidder == highestBidder)) {
+               unavailableLength++;
+            }
+        }
+
+        BidInfo[] memory availableBids = new BidInfo[](len - unavailableLength);
+        for (uint i = 0; i < len - unavailableLength; i ++) {
+            if (bids[_auctionHash][i].hasWithdrawn || ( bids[_auctionHash][i].bidder == highestBidder)) {
+               availableBids[i] = bids[_auctionHash][len - unavailableLength];
+            } else {
+                availableBids[i] = bids[_auctionHash][i];
+            }
+        }  
+          
+        return availableBids;
     }
 
     function accept(bytes32 _auctionHash) external 

@@ -594,8 +594,21 @@ describe("Test NFTauction getAllBids()", function () {
     expect(bids[1].bidder).to.be.equal(accounts[2].address);
     expect(bids[2].bidder).to.be.equal(accounts[3].address);
   });
-  
-  it("Should not call getAllBids for not owner", async function () {
+});
+
+
+describe("Test NFTauction returnAllBids()", function () {
+  let nftAuction;
+  let accounts;
+  let auctionHashes = []
+
+  beforeEach(async function () {
+    const initData = await init();
+
+    ({accounts, nftAuction, auctionHashes} = initData);
+  })
+
+  it("Should return all bids", async function () {
     await nftAuction.startAll();
 
     await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
@@ -610,8 +623,31 @@ describe("Test NFTauction getAllBids()", function () {
       from: accounts[3].address,
       value: 31
     });
+    
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 31
+    });
    
-    await expect(nftAuction.connect(accounts[1]).getAllBids(auctionHashes[0])).to.be.revertedWith("Ownable: caller is not the owner");
+    const bids = await nftAuction.returnAllBids(auctionHashes[0]);
+
+    expect(bids.length).to.be.equal(2);
+    expect(bids[0].bidder).to.be.equal(accounts[1].address);
+    expect(bids[1].bidder).to.be.equal(accounts[3].address);
+  });
+  it("Should return all bids for only owner", async function () {
+    await nftAuction.startAll();
+
+    await nftAuction.connect(accounts[1]).bid(auctionHashes[0], {
+      from: accounts[1].address,
+      value: 11
+    });
+    await nftAuction.connect(accounts[2]).bid(auctionHashes[0], {
+      from: accounts[2].address,
+      value: 21
+    });
+   
+    await expect(nftAuction.connect(accounts[1]).returnAllBids(auctionHashes[0])).to.be.revertedWith("Ownable: caller is not the owner");
   });
 });
 
