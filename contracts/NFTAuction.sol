@@ -250,26 +250,18 @@ contract NFTAuction is Ownable, ReentrancyGuard{
     }
     
     // return all bids that are not high bids and not already withdrawn
-    function returnAllBids(bytes32 _auctionHash) external onlyOwner view returns(BidInfo[] memory) {
+    function returnBidsToWallets(bytes32 _auctionHash) external onlyOwner () {
         uint len = bids[_auctionHash].length;
-        address highestBidder = auctions[_auctionHash].highestBidder;
-        uint unavailableLength; // length of not available withdrawn bids
         for (uint i = 0; i < len; i ++) {
-            if (bids[_auctionHash][i].hasWithdrawn || ( bids[_auctionHash][i].bidder == highestBidder)) {
-               unavailableLength++;
+            if ( 
+                !bids[_auctionHash][i].hasWithdrawn &&
+                (bids[_auctionHash][i].bidder != auctions[_auctionHash].highestBidder)
+            ) {
+             
+                (bool sent, ) = bids[_auctionHash][i].bidder.call{value: bids[_auctionHash][i].value}("");
+                require(sent, "transfer failed");
             }
         }
-
-        BidInfo[] memory availableBids = new BidInfo[](len - unavailableLength);
-        for (uint i = 0; i < len - unavailableLength; i ++) {
-            if (bids[_auctionHash][i].hasWithdrawn || ( bids[_auctionHash][i].bidder == highestBidder)) {
-               availableBids[i] = bids[_auctionHash][len - unavailableLength];
-            } else {
-                availableBids[i] = bids[_auctionHash][i];
-            }
-        }  
-          
-        return availableBids;
     }
 
     function accept(bytes32 _auctionHash) external 
